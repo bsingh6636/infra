@@ -1,0 +1,45 @@
+version: '3.8'
+
+networks:
+  bsingh-net:
+    driver: bridge
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+    container_name: bsingh-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - bsingh-net
+    depends_on:
+      - backend
+      - frontend
+      - getdata
+
+  backend:
+    build:
+      context: git@github.com:bsingh6636/EduCors-Helper.git#main:BackEnd
+    container_name: bsingh-backend
+    networks:
+      - bsingh-net
+    environment:
+      - PORT=3000
+
+  frontend:
+    build:
+      context: git@github.com:bsingh6636/EduCors-Helper.git#main:FrontEnd
+    container_name: bsingh-frontend
+    networks:
+      - bsingh-net
+
+  getdata:
+    build:
+      context: git@github.com:bsingh6636/EduCors-Helper.git#main:getdata
+    container_name: bsingh-getdata
+    networks:
+      - bsingh-net
+    environment:
+      - PORT=3000
