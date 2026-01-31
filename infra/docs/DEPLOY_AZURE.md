@@ -7,7 +7,6 @@
 
 ---
 
-## 🚀 Deploy in 3 Steps
 
 ### Step 1: Navigate to Infra Directory
 ```bash
