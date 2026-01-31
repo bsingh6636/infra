@@ -28,6 +28,7 @@ docker compose -f docker-compose.prod.yml up -d
 |-------|-------------|
 | [Build Guide](docs/BUILD_GUIDE.md) | Multi-platform builds, performance optimization |
 | [Azure Deployment](docs/DEPLOY_AZURE.md) | Step-by-step cloud deployment guide |
+| [**SSL Setup**](ssl-setup/README.md) | **Free HTTPS certificates with Let's Encrypt** |
 
 ---
 
