@@ -71,3 +71,17 @@ The primary goal was to create a cloud-ready, portable Docker and Docker Compose
 
 //for parallel build
 DOCKER_BUILDKIT=1 docker compose up -d --build
+
+
+//seful commands
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Restart services
+docker compose -f docker-compose.prod.yml restart
+
+# Stop everything
+docker compose -f docker-compose.prod.yml down
+
+# Update to latest images
+docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
