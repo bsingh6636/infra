@@ -1,0 +1,22 @@
+# BuildKit Configuration for Maximum Performance
+# Place this file at: ~/.docker/buildkit.toml (optional)
+
+# Enable parallel builds with maximum workers
+[worker.oci]
+  max-parallelism = 8  # Adjust based on CPU cores
+
+# Enable build cache
+[worker.containerd]
+  gc = true
+  gckeepstorage = 10000  # Keep 10GB cache
+
+# Network optimizations
+[registry."docker.io"]
+  mirrors = []
+  http = false
+  insecure = false
+
+# Build cache configuration
+[[cache]]
+  type = "registry"
+  mode = "max"
