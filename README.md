@@ -67,3 +67,7 @@ The primary goal was to create a cloud-ready, portable Docker and Docker Compose
 3.  Navigate to the `infra/` directory within this project.
 4.  Run `docker-compose up -d --build` to build and start all services.
 5.  Refer to `infra/README.md` for detailed instructions and service endpoints.
+
+
+//for parallel build
+DOCKER_BUILDKIT=1 docker compose up -d --build
