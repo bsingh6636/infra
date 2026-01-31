@@ -4,29 +4,66 @@
 
 ### Build ALL Images (Recommended for Production)
 ```bash
-# FASTEST: Parallel build (3-4 minutes)
+# FASTEST: Parallel build (3-4 minutes) + AUTO PUSH to Docker Hub
 ./build.sh --parallel
 
-# Sequential build (8-12 minutes)
+# Sequential build (8-12 minutes) + AUTO PUSH
 ./build.sh
 ```
 
+> **Note**: By default, all builds **automatically push** to Docker Hub. You'll see `ℹ Push: true` in the output.
+
 ### Build Specific Images
 ```bash
-# Build just nginx
+# Build just nginx (auto-pushed)
 ./build.sh nginx
 
-# Build backend and frontend only
+# Build backend and frontend only (auto-pushed)
 ./build.sh backend frontend
+```
+
+### Build Without Pushing (Testing)
+```bash
+# Build locally, skip Docker Hub upload
+./build.sh --no-push nginx
+
+# Parallel build, no push (for testing)
+./build.sh --parallel --no-push
 ```
 
 ### Platform-Specific Builds (50% Faster)
 ```bash
-# For cloud servers (AWS, Azure, GCP)
+# For cloud servers (AWS, Azure, GCP) - auto-pushed
 ./build.sh -p linux/amd64 all
 
-# For Mac M1/M2 or AWS Graviton
+# For Mac M1/M2 or AWS Graviton - auto-pushed
 ./build.sh -p linux/arm64 all
+```
+
+---
+
+## 📤 **Push Behavior**
+
+| Command | Builds | Pushes to Docker Hub? |
+|---------|--------|----------------------|
+| `./build.sh` | ✅ Yes | ✅ **Yes (automatic)** |
+| `./build.sh --parallel` | ✅ Yes | ✅ **Yes (automatic)** |
+| `./build.sh --no-push` | ✅ Yes | ❌ No (local only) |
+| `docker compose build` | ✅ Yes | ❌ No (need `docker compose push`) |
+
+### When Builds Push:
+- Images are built AND pushed in **one command**
+- You'll see: `ℹ Push: true` at the start
+- No need to run separate push command
+- Images go to: `bsingh6636/bsingh-<image>:latest`
+
+### Manual Push (if needed):
+```bash
+# If you built with --no-push and want to push later:
+docker push bsingh6636/bsingh-nginx:latest
+docker push bsingh6636/bsingh-backend:latest
+docker push bsingh6636/bsingh-frontend:latest
+docker push bsingh6636/bsingh-getdata:latest
 ```
 
 ---
