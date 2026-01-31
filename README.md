@@ -1,57 +1,154 @@
 # CORS-Proxy Infrastructure
 
-Production-ready, multi-platform Docker infrastructure for deploying CORS proxy services.
+Production-ready, multi-platform Docker infrastructure for deploying CORS proxy services across AWS, Azure, GCP, and any cloud platform.
 
-## 🚀 Quick Links
+## 🚀 Quick Start
 
-- **[Infrastructure Setup & Deployment](infra/)** - Main documentation
-- **[Build Guide](infra/docs/BUILD_GUIDE.md)** - Multi-platform builds
-- **[Azure Deployment](infra/docs/DEPLOY_AZURE.md)** - Cloud deployment
+### Local Development
+```bash
+docker compose up -d
+```
 
-## 📦 What's Included
+### Production Deployment
+```bash
+# Build & push multi-platform images
+./build.sh --parallel
 
-This repository contains Docker infrastructure for:
-- Multi-platform image builds (AMD64 + ARM64)
-- Production deployment configuration
-- Nginx reverse proxy with custom domain support
-- Automated build scripts
+# Deploy on cloud VM
+docker login
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
 
-## 🏗️ Structure
+---
+
+## 📚 Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Build Guide](docs/BUILD_GUIDE.md) | Multi-platform builds, performance optimization |
+| [Azure Deployment](docs/DEPLOY_AZURE.md) | Step-by-step cloud deployment guide |
+
+---
+
+## 🏗️ Project Structure
 
 ```
 bsingh-infra/
-├── infra/                       # Main infrastructure
-│   ├── README.md               # Setup & deployment docs
-│   ├── build.sh                # Build automation script
-│   ├── docker-compose.yml      # Development
-│   ├── docker-compose.prod.yml # Production
-│   ├── nginx/                  # Reverse proxy config
-│   └── docs/                   # Detailed guides
-│       ├── BUILD_GUIDE.md
-│       ├── DEPLOY_AZURE.md
-│       └── buildkit.toml
-└── README.md                   # This file
+├── README.md                    # This file
+├── build.sh                     # Multi-platform build automation
+├── docker-compose.yml           # Development environment
+├── docker-compose.prod.yml      # Production deployment
+├── .env.example                 # Environment variables template
+├── nginx/                       # Nginx reverse proxy
+│   ├── Dockerfile
+│   └── conf.d/
+│       └── bsingh.conf         # Domain routing config
+└── docs/                        # Documentation
+    ├── BUILD_GUIDE.md
+    ├── DEPLOY_AZURE.md
+    └── buildkit.toml
 ```
 
-## ⚡ Quick Start
+---
 
+## 🌐 Live Domains
+
+| Domain | Service |
+|--------|---------|
+| `cors-proxy.brijeshdev.space` | Frontend App |
+| `api-cors-proxy.brijeshdev.space` | Backend API |
+| `getdata-cors-proxy.brijeshdev.space` | GetData Service |
+
+---
+
+## 🔧 Common Commands
+
+### Build Images
 ```bash
-cd infra/
-
-# Development
-docker compose up -d
-
-# Production
-./build.sh --parallel
-# Then deploy to cloud (see infra/docs/DEPLOY_AZURE.md)
+./build.sh --parallel              # Build all (fastest, 3-4 min)
+./build.sh nginx                   # Build specific image
+./build.sh -p linux/amd64 all      # Single platform (faster)
+./build.sh --no-push nginx         # Local build only
 ```
 
-## 🌐 Live Services
+### Development
+```bash
+docker compose up -d               # Start all services
+docker compose logs -f             # View logs
+docker compose down                # Stop all services
+```
 
-- Frontend: `cors-proxy.brijeshdev.space`
-- Backend API: `api-cors-proxy.brijeshdev.space`
-- GetData: `getdata-cors-proxy.brijeshdev.space`
+### Production
+```bash
+docker compose -f docker-compose.prod.yml pull     # Pull latest images
+docker compose -f docker-compose.prod.yml up -d    # Start production
+docker compose -f docker-compose.prod.yml restart  # Restart services
+```
 
-## 📖 Full Documentation
+---
 
-See [infra/README.md](infra/README.md) for complete setup and deployment instructions.
+## 📦 Docker Images
+
+Multi-platform support (AMD64 + ARM64):
+
+- `bsingh6636/bsingh-nginx:latest`
+- `bsingh6636/bsingh-backend:latest`
+- `bsingh6636/bsingh-frontend:latest`
+- `bsingh6636/bsingh-getdata:latest`
+
+---
+
+## ⚡ Performance
+
+- ✅ Multi-platform builds (Mac, AWS, Azure, GCP compatible)
+- ✅ Parallel builds (3x faster)
+- ✅ BuildKit caching
+- ✅ Registry cache support
+
+**Build Times:**
+- Sequential: ~8-12 minutes
+- Parallel: ~3-4 minutes
+
+---
+
+## 🛠️ Configuration
+
+### Environment Variables
+```bash
+cp .env.example .env
+# Edit .env with your production values
+```
+
+### Custom Domains
+Edit `nginx/conf.d/bsingh.conf`:
+```nginx
+server_name your-domain.com;
+```
+
+Then rebuild nginx:
+```bash
+./build.sh nginx
+```
+
+---
+
+## 🐛 Troubleshooting
+
+**Port 80 in use:**
+```bash
+sudo systemctl stop nginx apache2
+docker compose up -d
+```
+
+**Containers not starting:**
+```bash
+docker compose logs
+docker ps -a
+```
+
+See [docs/DEPLOY_AZURE.md](docs/DEPLOY_AZURE.md) for more help.
+
+---
+
+**Built with ❤️ for universal cloud deployment**

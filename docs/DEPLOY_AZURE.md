@@ -2,15 +2,16 @@
 
 ## Prerequisites ✅
 - Docker installed on Azure VM
-- Repository cloned at `~/infra`
+- Repository cloned at `~/bsingh-infra`
 - You are SSH'd into your Azure VM
 
 ---
 
+## 🚀 Deploy in 3 Steps
 
-### Step 1: Navigate to Infra Directory
+### Step 1: Navigate to Project Directory
 ```bash
-cd ~/infra/infra/
+cd ~/bsingh-infra/
 ```
 
 ### Step 2: Create Environment File
@@ -180,9 +181,10 @@ Replace `<azure-ip>` with your VM's public IP address.
 If `.env` is ready, deploy everything in one command:
 
 ```bash
-cd ~/infra/infra/ && \
+cd ~/bsingh-infra/ && \
 docker login && \
 docker compose -f docker-compose.prod.yml pull && \
 docker compose -f docker-compose.prod.yml up -d && \
 docker ps
 ```
+

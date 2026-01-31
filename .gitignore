@@ -1,2 +1,2 @@
 # Ignore environment files containing secrets
-infra/.env
+.env
