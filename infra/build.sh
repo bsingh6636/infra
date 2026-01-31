@@ -259,4 +259,3 @@ echo -e "\n${GREEN}Images ready:${NC}"
 for img in "${IMAGES[@]}"; do
     echo "  ✓ ${DOCKER_USERNAME}/bsingh-${img}:latest"
 done
-x
