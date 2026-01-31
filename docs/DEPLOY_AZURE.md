@@ -31,21 +31,27 @@ API_KEY=your-api-key
 
 **Save and exit:** `Ctrl+X`, then `Y`, then `Enter`
 
-### Step 3: Pull & Start Containers
+### Step 3: Pull Application Images
 ```bash
 # Login to Docker Hub
 docker login
-# Username: bsingh6636
-# Password: <your-docker-hub-password>
 
-# Pull all images (they'll auto-select AMD64 for your server)
-docker compose -f docker-compose.prod.yml pull
+# Pull application images (Nginx is built locally for SSL)
+docker compose -f docker-compose.prod.yml pull backend frontend getdata
+```
 
-# Start all containers in background
-docker compose -f docker-compose.prod.yml up -d
+### Step 4: Setup SSL (One-Time)
+```bash
+# Initialize SSL certificates
+cd ssl-setup
+sudo ./setup-ssl.sh
+```
+*Follow the prompts. Ensure your DNS records point to this server!*
 
-# Verify they're running
-docker ps
+### Step 5: Deploy & Go Live
+```bash
+# Deploy with SSL configuration
+./deploy-ssl.sh
 ```
 
 ---
@@ -71,25 +77,20 @@ docker compose -f docker-compose.prod.yml logs
 
 # Follow logs in real-time
 docker compose -f docker-compose.prod.yml logs -f
-
-# Check specific service
-docker compose -f docker-compose.prod.yml logs backend
 ```
 
-### Test Services
+### Test Services (HTTPS)
 ```bash
 # Test from inside the VM
-curl http://localhost/          # Frontend
-curl http://localhost/api/      # Backend
-curl http://localhost/getdata/  # GetData
+curl -k https://localhost/          # Frontend
+curl -k https://localhost/api/      # Backend
 
 # Get your VM's public IP
 curl ifconfig.me
 
 # Then test from your browser:
-# http://<your-azure-ip>/
-# http://<your-azure-ip>/api/
-# http://<your-azure-ip>/getdata/
+# https://<your-domain>/
+# https://cors-proxy.brijeshdev.space
 ```
 
 ---
@@ -106,13 +107,13 @@ docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml restart
 ```
 
-### Update to Latest Images
+### Update Deployment
 ```bash
-# Pull latest
-docker compose -f docker-compose.prod.yml pull
+# 1. Pull latest app images
+docker compose -f docker-compose.prod.yml pull backend frontend getdata
 
-# Restart with new images
-docker compose -f docker-compose.prod.yml up -d
+# 2. Re-deploy with SSL script
+./ssl-setup/deploy-ssl.sh
 ```
 
 ### Remove Everything (including volumes)
@@ -142,22 +143,10 @@ sudo lsof -i :80
 sudo systemctl stop apache2
 ```
 
-### Permission Denied?
+### SSL Issues?
 ```bash
-# Add user to docker group
-sudo usermod -aG docker $USER
-
-# Logout and login again, or use sudo:
-sudo docker compose -f docker-compose.prod.yml up -d
-```
-
-### Images Not Pulling?
-```bash
-# Make sure you're logged in
-docker login
-
-# Try pulling manually
-docker pull bsingh6636/bsingh-nginx:latest
+# Check certificate status
+./ssl-setup/check-ssl.sh
 ```
 
 ---
@@ -168,11 +157,9 @@ Once running, access at:
 
 | Service | URL |
 |---------|-----|
-| **Frontend** | `http://<azure-ip>/` |
-| **Backend API** | `http://<azure-ip>/api/` |
-| **GetData API** | `http://<azure-ip>/getdata/` |
-
-Replace `<azure-ip>` with your VM's public IP address.
+| **Frontend** | `https://cors-proxy.brijeshdev.space` |
+| **Backend API** | `https://api-cors-proxy.brijeshdev.space` |
+| **GetData API** | `https://getdata-cors-proxy.brijeshdev.space` |
 
 ---
 
@@ -183,8 +170,9 @@ If `.env` is ready, deploy everything in one command:
 ```bash
 cd ~/bsingh-infra/ && \
 docker login && \
-docker compose -f docker-compose.prod.yml pull && \
-docker compose -f docker-compose.prod.yml up -d && \
-docker ps
+docker compose -f docker-compose.prod.yml pull backend frontend getdata && \
+cd ssl-setup && \
+sudo ./setup-ssl.sh && \
+./deploy-ssl.sh
 ```
 

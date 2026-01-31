@@ -1,5 +1,8 @@
 # CORS-Proxy Infrastructure
 
+![SSL Status](https://img.shields.io/badge/SSL-Secure%20%26%20Encrypted-success)
+![Docker](https://img.shields.io/badge/Docker-Multi--Platform-blue)
+
 Production-ready, multi-platform Docker infrastructure for deploying CORS proxy services across AWS, Azure, GCP, and any cloud platform.
 
 ## 🚀 Quick Start
@@ -11,13 +14,13 @@ docker compose up -d
 
 ### Production Deployment
 ```bash
-# Build & push multi-platform images
+# 1. Build & push multi-platform images (backend/frontend/getdata)
 ./build.sh --parallel
 
-# Deploy on cloud VM
-docker login
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+# 2. Deploy on cloud VM with SSL
+cd ssl-setup
+sudo ./setup-ssl.sh    # First time only
+./deploy-ssl.sh        # Deploy updates
 ```
 
 ---
@@ -26,9 +29,9 @@ docker compose -f docker-compose.prod.yml up -d
 
 | Guide | Description |
 |-------|-------------|
+| [**SSL Setup**](ssl-setup/README.md) | **Free HTTPS certificates with Let's Encrypt** |
 | [Build Guide](docs/BUILD_GUIDE.md) | Multi-platform builds, performance optimization |
 | [Azure Deployment](docs/DEPLOY_AZURE.md) | Step-by-step cloud deployment guide |
-| [**SSL Setup**](ssl-setup/README.md) | **Free HTTPS certificates with Let's Encrypt** |
 
 ---
 
@@ -45,6 +48,10 @@ bsingh-infra/
 │   ├── Dockerfile
 │   └── conf.d/
 │       └── bsingh.conf         # Domain routing config
+├── ssl-setup/                   # SSL/HTTPS Automation
+│   ├── setup-ssl.sh            # Get certificates
+│   ├── deploy-ssl.sh           # Activate HTTPS
+│   └── ...
 └── docs/                        # Documentation
     ├── BUILD_GUIDE.md
     ├── DEPLOY_AZURE.md
@@ -57,9 +64,9 @@ bsingh-infra/
 
 | Domain | Service |
 |--------|---------|
-| `cors-proxy.brijeshdev.space` | Frontend App |
-| `api-cors-proxy.brijeshdev.space` | Backend API |
-| `getdata-cors-proxy.brijeshdev.space` | GetData Service |
+| `https://cors-proxy.brijeshdev.space` | Frontend App |
+| `https://api-cors-proxy.brijeshdev.space` | Backend API |
+| `https://getdata-cors-proxy.brijeshdev.space` | GetData Service |
 
 ---
 
@@ -80,11 +87,16 @@ docker compose logs -f             # View logs
 docker compose down                # Stop all services
 ```
 
-### Production
+### Production (with SSL)
 ```bash
-docker compose -f docker-compose.prod.yml pull     # Pull latest images
-docker compose -f docker-compose.prod.yml up -d    # Start production
-docker compose -f docker-compose.prod.yml restart  # Restart services
+# Deploy or update services
+./ssl-setup/deploy-ssl.sh
+
+# Check certificate status
+./ssl-setup/check-ssl.sh
+
+# Restart services
+docker compose -f docker-compose.prod.yml restart
 ```
 
 ---

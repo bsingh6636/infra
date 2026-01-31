@@ -77,7 +77,7 @@ echo ""
 
 # Step 6: Rebuild nginx
 log_info "🔨 Step 5: Rebuilding nginx image with SSL config..."
-if ! ./build.sh nginx; then
+if ! ./build.sh --no-push nginx; then
     log_error "❌ Nginx build failed"
     exit 1
 fi
@@ -85,7 +85,7 @@ log_info "   ✓ Nginx image built"
 
 # Step 7: Deploy
 log_info "🚀 Step 6: Deploying services..."
-docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml pull backend frontend getdata
 docker compose -f docker-compose.prod.yml up -d
 
 log_info "   ✓ Services deployed"
