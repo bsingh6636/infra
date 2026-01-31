@@ -183,19 +183,69 @@ info "Push: ${PUSH}"
 echo ""
 
 if [ "$PARALLEL" = "true" ]; then
-    info "Building in parallel..."
+    info "Building in parallel (build logs saved to /tmp/build-*.log)..."
+    info "Expected time: ~3-4 minutes. Building ${#IMAGES[@]} images simultaneously..."
+    echo ""
+    
+    # Start all builds in background
     pids=()
     for img in "${IMAGES[@]}"; do
-        build_image "$img" "$PLATFORMS" "$PUSH" &
+        build_image "$img" "$PLATFORMS" "$PUSH" > "/tmp/build-${img}.log" 2>&1 &
         pids+=($!)
     done
     
+    # Show progress while waiting
+    printf "${BLUE}⏳${NC} Building: "
+    spin='-\|/'
+    i=0
+    completed=0
     failed=0
-    for pid in "${pids[@]}"; do
-        wait $pid || failed=$((failed + 1))
+    
+    while [ $completed -lt ${#pids[@]} ]; do
+        completed=0
+        failed=0
+        
+        for j in "${!pids[@]}"; do
+            pid=${pids[$j]}
+            if ! kill -0 $pid 2>/dev/null; then
+                # Process finished
+                completed=$((completed + 1))
+                if wait $pid 2>/dev/null; then
+                    # Success - already counted
+                    true
+                else
+                    failed=$((failed + 1))
+                fi
+            fi
+        done
+        
+        # Show spinner
+        i=$(( (i+1) % 4 ))
+        printf "\r${BLUE}⏳${NC} Building: ${spin:$i:1}  [${completed}/${#pids[@]} complete]  "
+        sleep 0.2
     done
     
+    printf "\r\033[K"  # Clear line
+    echo ""
+    
+    # Show results
+    for j in "${!IMAGES[@]}"; do
+        img=${IMAGES[$j]}
+        if grep -q "Built $img" "/tmp/build-${img}.log" 2>/dev/null || \
+           grep -q "pushing manifest" "/tmp/build-${img}.log" 2>/dev/null; then
+            success "Built ${img}"
+        else
+            error "Failed to build ${img} (check /tmp/build-${img}.log)"
+            failed=$((failed + 1))
+        fi
+    done
+    
+    echo ""
     [ $failed -eq 0 ] && success "All builds succeeded!" || error "$failed build(s) failed"
+    
+    # Cleanup tip
+    info "Build logs available at: /tmp/build-*.log"
+    
     exit $failed
 else
     for img in "${IMAGES[@]}"; do
