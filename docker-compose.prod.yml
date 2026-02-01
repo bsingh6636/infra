@@ -42,8 +42,6 @@ services:
       - .env
 
   portfolio:
-    build:
-      context: git@github.com:bsingh6636/myPortfolio.git#main
     image: bsingh6636/bsingh-portfolio:latest
     container_name: bsingh-portfolio
     networks:

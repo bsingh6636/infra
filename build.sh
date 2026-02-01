@@ -6,6 +6,7 @@
 # Optimized for parallel builds and multi-threading
 
 set -e
+set -o pipefail
 
 # Colors
 GREEN='\033[0;32m'

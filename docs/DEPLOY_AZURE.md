@@ -5,17 +5,10 @@
 - Repository cloned at `~/bsingh-infra`
 - You are SSH'd into your Azure VM
 
----
-
-## 🚀 Deploy in 3 Steps
-
-### Step 1: Navigate to Project Directory
-```bash
 cd ~/bsingh-infra/
 ```
 
 ### Step 2: Create Environment File
-```bash
 # Copy example and edit with your secrets
 cp .env.example .env
 nano .env
@@ -37,22 +30,17 @@ API_KEY=your-api-key
 docker login
 
 # Pull application images (Nginx is built locally for SSL)
-docker compose -f docker-compose.prod.yml pull backend frontend getdata
+docker compose -f docker-compose.prod.yml pull backend frontend getdata portfolio
 ```
 
-### Step 4: Setup SSL (One-Time)
-```bash
-# Initialize SSL certificates
-cd ssl-setup
-sudo ./setup-ssl.sh
-```
-*Follow the prompts. Ensure your DNS records point to this server!*
+### Step 4: Setup SSL & Deploy
+SSL configuration is handled separately. Please refer to:
+👉 **[ssl-setup/README.md](../ssl-setup/README.md)**
 
-### Step 5: Deploy & Go Live
-```bash
-# Deploy with SSL configuration
-./deploy-ssl.sh
-```
+Quick summary:
+1. Edit `ssl-setup/domains.conf`
+2. Run `sudo ./ssl-setup/setup-ssl.sh`
+3. Run `./ssl-setup/deploy-ssl.sh`
 
 ---
 
@@ -63,11 +51,12 @@ sudo ./setup-ssl.sh
 # See all running containers
 docker ps
 
-# You should see 4 containers:
+# You should see 5 containers:
 # - bsingh-nginx
 # - bsingh-backend
 # - bsingh-frontend
 # - bsingh-getdata
+# - bsingh-portfolio
 ```
 
 ### Check Logs
@@ -102,15 +91,17 @@ curl ifconfig.me
 docker compose -f docker-compose.prod.yml down
 ```
 
-### Restart Services
+### Restart All Services
 ```bash
 docker compose -f docker-compose.prod.yml restart
+# OR for a full recreation
+docker compose -f docker-compose.prod.yml up -d --force-recreate
 ```
 
 ### Update Deployment (All Services)
 ```bash
 # 1. Pull latest app images
-docker compose -f docker-compose.prod.yml pull backend frontend getdata
+docker compose -f docker-compose.prod.yml pull backend frontend getdata portfolio
 
 # 2. Re-deploy with SSL script
 ./ssl-setup/deploy-ssl.sh
@@ -191,10 +182,9 @@ server {
 
 ### 3. Deploy
 ```bash
-# 1. Add domain to SSL cert
-sudo ./ssl-setup/add-domain.sh admin.brijeshdev.space
-
-# 2. Deploy changes
+# 1. Add new domain to ssl-setup/domains.conf
+# 2. Update certificates & deploy
+sudo ./ssl-setup/setup-ssl.sh
 ./ssl-setup/deploy-ssl.sh
 ```
 
@@ -209,6 +199,7 @@ Once running, access at:
 | **Frontend** | `https://cors-proxy.brijeshdev.space` |
 | **Backend API** | `https://api-cors-proxy.brijeshdev.space` |
 | **GetData API** | `https://getdata-cors-proxy.brijeshdev.space` |
+| **Portfolio** | `https://portfolio.brijeshdev.space` |
 
 ---
 
