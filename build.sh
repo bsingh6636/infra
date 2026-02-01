@@ -25,7 +25,7 @@ DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 export DOCKER_BUILDKIT=1                    # Enable BuildKit for better performance
 export BUILDKIT_PROGRESS=plain              # Detailed progress output
 export COMPOSE_DOCKER_CLI_BUILD=1           # Use BuildKit for compose
-MAX_PARALLEL_BUILDS=4                       # Maximum parallel builds
+MAX_PARALLEL_BUILDS=5                       # Maximum parallel builds
 
 # Helper functions
 info() { echo -e "${BLUE}ℹ${NC} $1"; }
