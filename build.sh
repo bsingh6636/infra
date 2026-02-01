@@ -17,6 +17,7 @@ NC='\033[0m'
 # Configuration
 DOCKER_USERNAME="bsingh6636"
 GITHUB_REPO="git@github.com:bsingh6636/EduCors-Helper.git"
+PORTFOLIO_REPO="git@github.com:bsingh6636/myPortfolio.git"
 DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 
 # Performance Settings
@@ -89,7 +90,7 @@ get_context() {
         backend) echo "$GITHUB_REPO#main:BackEnd" ;;
         frontend) echo "$GITHUB_REPO#main:FrontEnd" ;;
         getdata) echo "$GITHUB_REPO#main:getdata" ;;
-        portfolio) echo "git@github.com:bsingh6636/myPortfolio.git#main" ;;
+        portfolio) echo "$PORTFOLIO_REPO#main" ;;
         *) echo ""; return 1 ;;
     esac
 }
