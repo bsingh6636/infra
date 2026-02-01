@@ -107,13 +107,20 @@ docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml restart
 ```
 
-### Update Deployment
+### Update Deployment (All Services)
 ```bash
 # 1. Pull latest app images
 docker compose -f docker-compose.prod.yml pull backend frontend getdata
 
 # 2. Re-deploy with SSL script
 ./ssl-setup/deploy-ssl.sh
+```
+
+### Update & Restart Specific Service
+```bash
+# Example: Update only Backend
+docker compose -f docker-compose.prod.yml pull backend
+docker compose -f docker-compose.prod.yml up -d --no-deps backend
 ```
 
 ### Remove Everything (including volumes)
@@ -147,6 +154,48 @@ sudo systemctl stop apache2
 ```bash
 # Check certificate status
 ./ssl-setup/check-ssl.sh
+```
+
+---
+
+---
+## ➕ Adding New Services
+
+To add a new service (e.g., `admin-dashboard` on port `3000`), follow these steps:
+
+### 1. Update `docker-compose.yml` (Local) & `docker-compose.prod.yml` (Prod)
+Add your service block:
+```yaml
+  admin:
+    image: your-username/admin-dashboard:latest
+    container_name: bsingh-admin
+    networks:
+      - bsingh-net
+    environment:
+      - PORT=3000
+```
+
+### 2. Update Nginx Config (`nginx/conf.d/bsingh.conf`)
+Add a new server block to route traffic:
+```nginx
+server {
+    listen 80;
+    server_name admin.brijeshdev.space;
+
+    location / {
+        proxy_pass http://admin:3000;  # Container name & port
+        # ... standard proxy headers ...
+    }
+}
+```
+
+### 3. Deploy
+```bash
+# 1. Add domain to SSL cert
+sudo ./ssl-setup/add-domain.sh admin.brijeshdev.space
+
+# 2. Deploy changes
+./ssl-setup/deploy-ssl.sh
 ```
 
 ---
