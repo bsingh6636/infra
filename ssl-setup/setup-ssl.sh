@@ -14,14 +14,21 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-DOMAINS=(
-    "cors-proxy.brijeshdev.space"
-    "api-cors-proxy.brijeshdev.space"
-    "getdata-cors-proxy.brijeshdev.space"
-)
-EMAIL="bkushwaha.dev@gmail.com"  
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/domains.conf"
+
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+else
+    echo -e "\033[0;31m[ERROR] Configuration file not found: $CONFIG_FILE\033[0m"
+    exit 1
+fi
+
 CERT_DIR="/etc/letsencrypt"
 NGINX_CONF_DIR="./nginx/conf.d"
+if [ -z "$CERT_NAME" ]; then
+    CERT_NAME="${DOMAINS[0]}"
+fi
 
 ################################################################################
 # Helper Functions
@@ -113,6 +120,8 @@ obtain_certificates() {
         --non-interactive \
         --agree-tos \
         --email "$EMAIL" \
+        --cert-name "$CERT_NAME" \
+        --expand \
         $DOMAIN_ARGS \
         --preferred-challenges http
     

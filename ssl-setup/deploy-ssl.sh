@@ -94,10 +94,21 @@ echo ""
 log_header "✅ SSL Deployment Complete!"
 echo ""
 
+# Load configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/domains.conf"
+
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+else
+    # Fallback if config not found (should not happen if flow is followed)
+    DOMAINS=("cors-proxy.brijeshdev.space" "api-cors-proxy.brijeshdev.space" "getdata-cors-proxy.brijeshdev.space")
+fi
+
 log_info "Your domains are now running on HTTPS:"
-log_info "  • https://cors-proxy.brijeshdev.space"
-log_info "  • https://api-cors-proxy.brijeshdev.space"
-log_info "  • https://getdata-cors-proxy.brijeshdev.space"
+for domain in "${DOMAINS[@]}"; do
+    log_info "  • https://$domain"
+done
 
 echo ""
 log_info "Next steps:"
