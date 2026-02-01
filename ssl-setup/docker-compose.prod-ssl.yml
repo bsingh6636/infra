@@ -18,6 +18,7 @@ services:
       - backend
       - frontend
       - getdata
+      - portfolio
     volumes:
       # Mount SSL certificates (read-only)
       - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -45,6 +46,15 @@ services:
   getdata:
     image: bsingh6636/bsingh-getdata:latest
     container_name: bsingh-getdata
+    networks:
+      - bsingh-net
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  portfolio:
+    image: bsingh6636/bsingh-portfolio:latest
+    container_name: bsingh-portfolio
     networks:
       - bsingh-net
     env_file:

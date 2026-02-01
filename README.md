@@ -62,6 +62,7 @@ bsingh-infra/
 
 | Domain | Service |
 |--------|---------|
+| `https://brijeshdev.space` | Portfolio Website |
 | `https://cors-proxy.brijeshdev.space` | Frontend App |
 | `https://api-cors-proxy.brijeshdev.space` | Backend API |
 | `https://getdata-cors-proxy.brijeshdev.space` | GetData Service |
