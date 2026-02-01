@@ -103,10 +103,19 @@ echo "=================================="
 log_header "🌐 Domain DNS Check"
 echo "=================================="
 
-# Extract all domains and check DNS
-DOMAINS=$($SUDO certbot certificates 2>/dev/null | grep "Domains:" | head -1 | cut -d: -f2 | xargs)
+# Load domains from config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/domains.conf"
 
-for domain in $DOMAINS; do
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+    DOMAIN_LIST="${DOMAINS[@]}"
+else
+    # Fallback to certbot output if config not found
+    DOMAIN_LIST=$($SUDO certbot certificates 2>/dev/null | grep "Domains:" | head -1 | cut -d: -f2 | xargs)
+fi
+
+for domain in $DOMAIN_LIST; do
     if host "$domain" > /dev/null 2>&1; then
         IP=$(host "$domain" | grep "has address" | awk '{print $4}' | head -1)
         log_info "✓ $domain → $IP"
