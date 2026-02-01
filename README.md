@@ -27,11 +27,9 @@ sudo ./setup-ssl.sh    # First time only
 
 ## 📚 Documentation
 
-| Guide | Description |
-|-------|-------------|
-| [**SSL Setup**](ssl-setup/README.md) | **Free HTTPS certificates with Let's Encrypt** |
-| [Build Guide](docs/BUILD_GUIDE.md) | Multi-platform builds, performance optimization |
-| [Azure Deployment](docs/DEPLOY_AZURE.md) | Step-by-step cloud deployment guide |
+- [**Quick Deploy Guide**](docs/DEPLOY_AZURE.md) - Deploy to Azure/VPS
+- [**SSL Setup**](ssl-setup/README.md) - Manage HTTPS/Certificates
+- [**Add New Service**](docs/ADD_NEW_SERVICE.md) - How to add a new app to the stack
 
 ---
 

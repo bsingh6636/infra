@@ -107,11 +107,11 @@ setup_buildx() {
     exit 0
 }
 
+
 build_image() {
     local name=$1
     local platforms=$2
     local push=$3
-    
     context=$(get_context "$name") || {
         error "Unknown image: $name"
         return 1
