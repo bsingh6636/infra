@@ -85,7 +85,7 @@ log_info "   ✓ Nginx image built"
 
 # Step 7: Deploy
 log_info "🚀 Step 6: Deploying services..."
-docker compose -f docker-compose.prod.yml pull backend frontend getdata
+docker compose -f docker-compose.prod.yml pull backend frontend getdata portfolio
 docker compose -f docker-compose.prod.yml up -d
 
 log_info "   ✓ Services deployed"

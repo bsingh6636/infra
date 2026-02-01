@@ -79,6 +79,7 @@ list_images() {
     echo "  • backend"
     echo "  • frontend"
     echo "  • getdata"
+    echo "  • portfolio"
     exit 0
 }
 
@@ -88,6 +89,7 @@ get_context() {
         backend) echo "$GITHUB_REPO#main:BackEnd" ;;
         frontend) echo "$GITHUB_REPO#main:FrontEnd" ;;
         getdata) echo "$GITHUB_REPO#main:getdata" ;;
+        portfolio) echo "git@github.com:bsingh6636/myPortfolio.git#main" ;;
         *) echo ""; return 1 ;;
     esac
 }
@@ -157,14 +159,14 @@ while [[ $# -gt 0 ]]; do
         -p|--platforms) PLATFORMS="$2"; shift 2 ;;
         -n|--no-push) PUSH="false"; shift ;;
         --parallel) PARALLEL="true"; shift ;;
-        all) IMAGES=(nginx backend frontend getdata); shift ;;
-        nginx|backend|frontend|getdata) IMAGES+=("$1"); shift ;;
+        all) IMAGES=(nginx backend frontend getdata portfolio); shift ;;
+        nginx|backend|frontend|getdata|portfolio) IMAGES+=("$1"); shift ;;
         *) error "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 # Default to all if none specified
-[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata)
+[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio)
 
 # Ensure buildx exists
 docker buildx inspect multiplatform &> /dev/null || {
@@ -187,9 +189,13 @@ if [ "$PARALLEL" = "true" ]; then
     info "Expected time: ~3-4 minutes. Building ${#IMAGES[@]} images simultaneously..."
     echo ""
     
+    start_total=$(date +%s)
+    
     # Start all builds in background
     pids=()
+    start_times=()
     for img in "${IMAGES[@]}"; do
+        date +%s > "/tmp/start-${img}.time"
         build_image "$img" "$PLATFORMS" "$PUSH" > "/tmp/build-${img}.log" 2>&1 &
         pids+=($!)
     done
@@ -199,23 +205,12 @@ if [ "$PARALLEL" = "true" ]; then
     spin='-\|/'
     i=0
     completed=0
-    failed=0
     
     while [ $completed -lt ${#pids[@]} ]; do
         completed=0
-        failed=0
-        
-        for j in "${!pids[@]}"; do
-            pid=${pids[$j]}
+        for pid in "${pids[@]}"; do
             if ! kill -0 $pid 2>/dev/null; then
-                # Process finished
                 completed=$((completed + 1))
-                if wait $pid 2>/dev/null; then
-                    # Success - already counted
-                    true
-                else
-                    failed=$((failed + 1))
-                fi
             fi
         done
         
@@ -228,9 +223,18 @@ if [ "$PARALLEL" = "true" ]; then
     printf "\r\033[K"  # Clear line
     echo ""
     
-    # Show results
-    for j in "${!IMAGES[@]}"; do
-        img=${IMAGES[$j]}
+    end_total=$(date +%s)
+    total_time=$((end_total - start_total))
+    
+    # Show results with times
+    failed=0
+    for img in "${IMAGES[@]}"; do
+        start_time=$(cat "/tmp/start-${img}.time")
+        # We can't get exact end time of subprocess easily in bash without wait -n (bash 4.3+)
+        # so we'll approximate individual times or just show total. 
+        # Actually, extracting time from log might be better if we logged it, 
+        # but for now let's show status.
+        
         if grep -q "Built $img" "/tmp/build-${img}.log" 2>/dev/null || \
            grep -q "pushing manifest" "/tmp/build-${img}.log" 2>/dev/null; then
             success "Built ${img}"
@@ -238,21 +242,36 @@ if [ "$PARALLEL" = "true" ]; then
             error "Failed to build ${img} (check /tmp/build-${img}.log)"
             failed=$((failed + 1))
         fi
+        rm -f "/tmp/start-${img}.time"
     done
     
     echo ""
-    [ $failed -eq 0 ] && success "All builds succeeded!" || error "$failed build(s) failed"
+    if [ $failed -eq 0 ]; then
+        success "All builds succeeded!"
+        info "Total time: $(date -u -r $total_time +%M:%S) min"
+    else 
+        error "$failed build(s) failed"
+    fi
     
     # Cleanup tip
     info "Build logs available at: /tmp/build-*.log"
     
     exit $failed
 else
+    start_total=$(date +%s)
     for img in "${IMAGES[@]}"; do
+        start_img=$(date +%s)
         build_image "$img" "$PLATFORMS" "$PUSH" || exit 1
+        end_img=$(date +%s)
+        time_img=$((end_img - start_img))
+        info "Time for ${img}: $(date -u -r $time_img +%M:%S) min"
         echo ""
     done
+    end_total=$(date +%s)
+    total_time=$((end_total - start_total))
+    
     success "All images built successfully!"
+    info "Total time: $(date -u -r $total_time +%M:%S) min"
 fi
 
 echo -e "\n${GREEN}Images ready:${NC}"
