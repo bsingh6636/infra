@@ -53,5 +53,3 @@ services:
     container_name: bsingh-portfolio
     networks:
       - bsingh-net
-    environment:
-      - PORT=3000

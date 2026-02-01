@@ -46,7 +46,5 @@ services:
     container_name: bsingh-portfolio
     networks:
       - bsingh-net
-    environment:
-      - PORT=3000
     env_file:
       - .env

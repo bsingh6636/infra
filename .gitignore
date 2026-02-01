@@ -1,2 +1,6 @@
 # Ignore environment files containing secrets
 .env
+
+# Deployment Backups
+*.backup.*
+
