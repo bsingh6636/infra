@@ -17,8 +17,8 @@ NC='\033[0m'
 
 # Configuration
 DOCKER_USERNAME="bsingh6636"
-GITHUB_REPO="git@github.com:bsingh6636/EduCors-Helper.git"
-PORTFOLIO_REPO="git@github.com:bsingh6636/myPortfolio.git"
+GITHUB_REPO="https://github.com/bsingh6636/EduCors-Helper.git"
+PORTFOLIO_REPO="https://github.com/bsingh6636/myPortfolio.git"
 DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 
 # Performance Settings
@@ -88,10 +88,10 @@ list_images() {
 get_context() {
     case $1 in
         nginx) echo "./nginx" ;;
-        backend) echo "$GITHUB_REPO#main:BackEnd" ;;
-        frontend) echo "$GITHUB_REPO#main:FrontEnd" ;;
-        getdata) echo "$GITHUB_REPO#main:getdata" ;;
-        portfolio) echo "$PORTFOLIO_REPO#main" ;;
+        backend) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:BackEnd" ;;
+        frontend) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:FrontEnd" ;;
+        getdata) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:getdata" ;;
+        portfolio) echo "https://github.com/bsingh6636/myPortfolio.git#main" ;;
         *) echo ""; return 1 ;;
     esac
 }
