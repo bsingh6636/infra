@@ -1,6 +1,32 @@
 # Ignore environment files containing secrets
 .env
+.env.local
+.env.production
+.env.*.local
+
+# SSH Keys
+*.pem
+*.key
+id_rsa*
+
+# SSL Private Keys
+*.crt
+*.csr
+privkey.pem
+
+# Secrets and credentials
+secrets/
+credentials/
+*.secrets
+*.credentials
+
+# Local development
+.DS_Store
+*.local
 
 # Deployment Backups
 *.backup.*
 
+# Logs
+*.log
+logs/
