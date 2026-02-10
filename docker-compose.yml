@@ -53,3 +53,11 @@ services:
     container_name: bsingh-portfolio
     networks:
       - bsingh-net
+
+  bae-portfolio:
+    build:
+      context: git@github.com:bsingh6636/cuddly-octo-funicular.git#main
+    image: bsingh6636/bsingh-bae-portfolio:latest
+    container_name: bsingh-bae-portfolio
+    networks:
+      - bsingh-net

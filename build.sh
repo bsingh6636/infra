@@ -19,6 +19,7 @@ NC='\033[0m'
 DOCKER_USERNAME="bsingh6636"
 GITHUB_REPO="https://github.com/bsingh6636/EduCors-Helper.git"
 PORTFOLIO_REPO="https://github.com/bsingh6636/myPortfolio.git"
+BAE_PORTFOLIO_REPO="https://github.com/bsingh6636/cuddly-octo-funicular.git"
 DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 
 # Performance Settings
@@ -92,6 +93,7 @@ get_context() {
         frontend) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:FrontEnd" ;;
         getdata) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:getdata" ;;
         portfolio) echo "https://github.com/bsingh6636/myPortfolio.git#main" ;;
+        bae-portfolio) echo "git@github.com:bsingh6636/cuddly-octo-funicular.git#main" ;;
         *) echo ""; return 1 ;;
     esac
 }
@@ -161,14 +163,14 @@ while [[ $# -gt 0 ]]; do
         -p|--platforms) PLATFORMS="$2"; shift 2 ;;
         -n|--no-push) PUSH="false"; shift ;;
         --parallel) PARALLEL="true"; shift ;;
-        all) IMAGES=(nginx backend frontend getdata portfolio); shift ;;
-        nginx|backend|frontend|getdata|portfolio) IMAGES+=("$1"); shift ;;
+        all) IMAGES=(nginx backend frontend getdata portfolio bae-portfolio); shift ;;
+        nginx|backend|frontend|getdata|portfolio|bae-portfolio) IMAGES+=("$1"); shift ;;
         *) error "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 # Default to all if none specified
-[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio)
+[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio bae-portfolio)
 
 # Ensure buildx exists
 docker buildx inspect multiplatform &> /dev/null || {
