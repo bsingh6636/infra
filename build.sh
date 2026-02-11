@@ -139,9 +139,9 @@ build_image() {
     # Multi-threaded npm install (for Node.js images)
     args="$args --build-arg NODE_OPTIONS='--max-old-space-size=4096'"
     
-    # Push or load locally, and enable SSH agent forwarding for private repos
+    # Push or load locally, and enable SSH agent forwarding if an agent is available
     [ "$push" = "true" ] && args="$args --push" || args="$args --load"
-    args="$args --ssh default"
+    [ -n "$SSH_AUTH_SOCK" ] && args="$args --ssh default"
     
     # Build with progress output
     if docker buildx build $args "$context" 2>&1 | grep -v "^#"; then
