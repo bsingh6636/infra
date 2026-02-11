@@ -17,6 +17,8 @@ services:
       - backend
       - frontend
       - getdata
+      - portfolio
+      - bae-portfolio
 
   backend:
     build:

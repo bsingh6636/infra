@@ -19,6 +19,7 @@ services:
       - frontend
       - getdata
       - portfolio
+      - bae-portfolio
     volumes:
       # Mount SSL certificates (read-only)
       - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -55,6 +56,15 @@ services:
   portfolio:
     image: bsingh6636/bsingh-portfolio:latest
     container_name: bsingh-portfolio
+    networks:
+      - bsingh-net
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  bae-portfolio:
+    image: bsingh6636/bsingh-bae-portfolio:latest
+    container_name: bsingh-bae-portfolio
     networks:
       - bsingh-net
     env_file:
