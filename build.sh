@@ -86,6 +86,9 @@ list_images() {
     exit 0
 }
 
+# Note: Private repositories (like bae-portfolio) MUST use SSH URLs
+# and require your SSH key to be added locally (ssh-add) before building.
+# See docs/PRIVATE_REPO_BUILDS.md for details.
 get_context() {
     case $1 in
         nginx) echo "./nginx" ;;
@@ -136,8 +139,9 @@ build_image() {
     # Multi-threaded npm install (for Node.js images)
     args="$args --build-arg NODE_OPTIONS='--max-old-space-size=4096'"
     
-    # Push or load locally
+    # Push or load locally, and enable SSH agent forwarding for private repos
     [ "$push" = "true" ] && args="$args --push" || args="$args --load"
+    args="$args --ssh default"
     
     # Build with progress output
     if docker buildx build $args "$context" 2>&1 | grep -v "^#"; then

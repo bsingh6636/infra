@@ -57,6 +57,7 @@ sudo ./setup-ssl.sh           # SSL certificates (first time)
 ### Advanced
 - [**Wildcard Subdomain Config**](docs/WILDCARD_SUBDOMAIN_CONFIG.md) - Handle random subdomains
 - [**Build Guide**](docs/BUILD_GUIDE.md) - Custom build configurations
+- [**Private Repo Builds**](docs/PRIVATE_REPO_BUILDS.md) - Build images from private repositories
 
 ---
 
