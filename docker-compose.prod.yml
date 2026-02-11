@@ -21,6 +21,8 @@ services:
       - portfolio
       - bae-portfolio
     volumes:
+      # Mount the SSL nginx config (overrides image config)
+      - ./ssl-setup/bsingh-ssl.conf:/etc/nginx/conf.d/bsingh.conf:ro
       # Mount SSL certificates (read-only)
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /etc/ssl/certs:/etc/ssl/certs:ro
