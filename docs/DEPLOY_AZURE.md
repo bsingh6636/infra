@@ -101,7 +101,7 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate
 ### Update Deployment (All Services)
 ```bash
 # 1. Pull latest app images
-docker compose -f docker-compose.prod.yml pull backend frontend getdata portfolio
+docker compose -f docker-compose.prod.yml pull backend frontend getdata portfolio bae-portfolio
 
 # 2. Re-deploy with SSL script
 ./ssl-setup/deploy-ssl.sh
