@@ -20,6 +20,8 @@ services:
       - getdata
       - portfolio
       - bae-portfolio
+      - subsnepal-frontend
+      - subsnepal-backend
     volumes:
       # Mount the SSL nginx config (overrides image config)
       - ./ssl-setup/bsingh-ssl.conf:/etc/nginx/conf.d/bsingh.conf:ro
@@ -67,6 +69,22 @@ services:
   bae-portfolio:
     image: bsingh6636/bsingh-bae-portfolio:latest
     container_name: bsingh-bae-portfolio
+    networks:
+      - bsingh-net
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  subsnepal-frontend:
+    image: bsingh6636/bsingh-subsnepal-frontend:latest
+    container_name: bsingh-subsnepal-frontend
+    networks:
+      - bsingh-net
+    restart: unless-stopped
+
+  subsnepal-backend:
+    image: bsingh6636/bsingh-subsnepal-backend:latest
+    container_name: bsingh-subsnepal-backend
     networks:
       - bsingh-net
     env_file:

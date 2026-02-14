@@ -19,6 +19,8 @@ services:
       - getdata
       - portfolio
       - bae-portfolio
+      - subsnepal-frontend
+      - subsnepal-backend
 
   backend:
     build:
@@ -61,5 +63,21 @@ services:
       context: git@github.com:bsingh6636/cuddly-octo-funicular.git#main
     image: bsingh6636/bsingh-bae-portfolio:latest
     container_name: bsingh-bae-portfolio
+    networks:
+      - bsingh-net
+
+  subsnepal-frontend:
+    build:
+      context: git@github.com:bsingh6636/oasisNep.git#main:reactJs
+    image: bsingh6636/bsingh-subsnepal-frontend:latest
+    container_name: bsingh-subsnepal-frontend
+    networks:
+      - bsingh-net
+
+  subsnepal-backend:
+    build:
+      context: git@github.com:bsingh6636/oasisNep.git#main:nodejs
+    image: bsingh6636/bsingh-subsnepal-backend:latest
+    container_name: bsingh-subsnepal-backend
     networks:
       - bsingh-net

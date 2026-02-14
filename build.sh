@@ -20,7 +20,10 @@ DOCKER_USERNAME="bsingh6636"
 GITHUB_REPO="https://github.com/bsingh6636/EduCors-Helper.git"
 PORTFOLIO_REPO="https://github.com/bsingh6636/myPortfolio.git"
 BAE_PORTFOLIO_REPO="https://github.com/bsingh6636/cuddly-octo-funicular.git"
-DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
+DEFAULT_PLATFORMS="linux/amd64"
+
+# for creating for all platforms
+# DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 
 # Performance Settings
 export DOCKER_BUILDKIT=1                    # Enable BuildKit for better performance
@@ -51,7 +54,7 @@ ${YELLOW}Options:${NC}
   -l, --list              List available images
 
 ${YELLOW}Images:${NC}
-  nginx, backend, frontend, getdata, all
+  nginx, backend, frontend, getdata, portfolio, bae-portfolio, subsnepal-frontend, subsnepal-backend, all
 
 ${YELLOW}Performance Features:${NC}
   ✓ BuildKit enabled (DOCKER_BUILDKIT=1)
@@ -83,6 +86,9 @@ list_images() {
     echo "  • frontend"
     echo "  • getdata"
     echo "  • portfolio"
+    echo "  • bae-portfolio"
+    echo "  • subsnepal-frontend"
+    echo "  • subsnepal-backend"
     exit 0
 }
 
@@ -97,6 +103,8 @@ get_context() {
         getdata) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:getdata" ;;
         portfolio) echo "https://github.com/bsingh6636/myPortfolio.git#main" ;;
         bae-portfolio) echo "git@github.com:bsingh6636/cuddly-octo-funicular.git#main" ;;
+        subsnepal-frontend) echo "git@github.com:bsingh6636/oasisNep.git#main:reactJs" ;;
+        subsnepal-backend) echo "git@github.com:bsingh6636/oasisNep.git#main:nodejs" ;;
         *) echo ""; return 1 ;;
     esac
 }
@@ -167,14 +175,14 @@ while [[ $# -gt 0 ]]; do
         -p|--platforms) PLATFORMS="$2"; shift 2 ;;
         -n|--no-push) PUSH="false"; shift ;;
         --parallel) PARALLEL="true"; shift ;;
-        all) IMAGES=(nginx backend frontend getdata portfolio bae-portfolio); shift ;;
-        nginx|backend|frontend|getdata|portfolio|bae-portfolio) IMAGES+=("$1"); shift ;;
+        all) IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend); shift ;;
+        nginx|backend|frontend|getdata|portfolio|bae-portfolio|subsnepal-frontend|subsnepal-backend) IMAGES+=("$1"); shift ;;
         *) error "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 # Default to all if none specified
-[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio bae-portfolio)
+[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend)
 
 # Ensure buildx exists
 docker buildx inspect multiplatform &> /dev/null || {
