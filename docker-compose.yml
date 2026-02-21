@@ -68,7 +68,7 @@ services:
 
   subsnepal-frontend:
     build:
-      context: git@github.com:bsingh6636/oasisNep.git#main:reactjs
+      context: git@github.com:bsingh6636/oasisNep.git#main:reactJs
     image: bsingh6636/bsingh-subsnepal-frontend:latest
     container_name: bsingh-subsnepal-frontend
     networks:

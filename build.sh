@@ -49,6 +49,7 @@ ${YELLOW}Options:${NC}
   -h, --help              Show this help
   -p, --platforms PLAT    Platforms (default: linux/amd64,linux/arm64)
   -n, --no-push           Build only, don't push
+  -f, --force             Force rebuild without cache (always pulls latest)
   --parallel              Build all images in parallel (2-4x faster)
   --setup                 Setup buildx
   -l, --list              List available images
@@ -68,6 +69,7 @@ ${YELLOW}Examples:${NC}
   ./build.sh --parallel               # Build all in parallel (FASTEST)
   ./build.sh nginx backend            # Build specific images
   ./build.sh -p linux/amd64 all       # AMD64 only (faster)
+  ./build.sh --force nginx            # Force fresh build (no cache)
   ./build.sh --no-push nginx          # Build without pushing
 
 ${YELLOW}Speed Comparison:${NC}
@@ -109,6 +111,16 @@ get_context() {
     esac
 }
 
+get_repo_url() {
+    case $1 in
+        backend|frontend|getdata) echo "https://github.com/bsingh6636/EduCors-Helper" ;;
+        portfolio) echo "https://github.com/bsingh6636/myPortfolio" ;;
+        bae-portfolio) echo "https://github.com/bsingh6636/cuddly-octo-funicular" ;;
+        subsnepal-frontend|subsnepal-backend) echo "https://github.com/bsingh6636/oasisNep" ;;
+        *) echo "" ;;
+    esac
+}
+
 setup_buildx() {
     info "Setting up Docker Buildx..."
     docker buildx inspect multiplatform &> /dev/null && {
@@ -125,11 +137,30 @@ build_image() {
     local name=$1
     local platforms=$2
     local push=$3
+    local force=$4
     context=$(get_context "$name") || {
         error "Unknown image: $name"
         return 1
     }
     
+    # Load environment variables from .env if it exists
+    if [ -f .env ]; then
+        info "Loading environment variables from .env"
+        # Robustly parse .env - ignore comments, empty lines, and handle possible spaces
+        while IFS='=' read -r key value || [ -n "$key" ]; do
+            # Remove leading/trailing whitespace from key
+            key=$(echo "$key" | xargs)
+            # Skip empty keys or comments
+            if [[ -z "$key" || "$key" =~ ^# ]]; then continue; fi
+            
+            # Remove whitespace and possible quotes from value
+            value=$(echo "$value" | sed 's/^ *//;s/ *$//;s/^["'\'']//;s/["'\'']$//')
+            
+            # Export the variable
+            export "$key=$value"
+        done < .env
+    fi
+
     local image="${DOCKER_USERNAME}/bsingh-${name}:latest"
     
     info "Building ${YELLOW}${name}${NC} for ${BLUE}${platforms}${NC}"
@@ -137,12 +168,27 @@ build_image() {
     # BuildKit optimizations for faster builds
     local args="--platform ${platforms} -t ${image}"
     
-    # Enable build cache for faster subsequent builds
-    args="$args --cache-from type=registry,ref=${image}"
-    args="$args --cache-to type=inline"
+    # BuildKit optimizations for faster builds
+    local args="--platform ${platforms} -t ${image}"
     
-    # BuildKit performance flags
-    args="$args --build-arg BUILDKIT_INLINE_CACHE=1"
+    # Automatically pass all host environment variables starting with REACT_APP_
+    # This is critical for React frontend builds
+    for var in $(env | grep "^REACT_APP_" | cut -d= -f1); do
+        info "Injecting Build Arg: $var"
+        args="$args --build-arg $var=${!var}"
+    done
+
+    if [ "$force" = "true" ]; then
+        info "Force mode: Bypassing cache, pulling latest"
+        args="$args --no-cache --pull"
+    else
+        # Enable build cache for faster subsequent builds
+        args="$args --cache-from type=registry,ref=${image}"
+        args="$args --cache-to type=inline"
+        
+        # BuildKit performance flags
+        args="$args --build-arg BUILDKIT_INLINE_CACHE=1"
+    fi
     
     # Multi-threaded npm install (for Node.js images)
     args="$args --build-arg NODE_OPTIONS='--max-old-space-size=4096'"
@@ -151,9 +197,46 @@ build_image() {
     [ "$push" = "true" ] && args="$args --push" || args="$args --load"
     [ -n "$SSH_AUTH_SOCK" ] && args="$args --ssh default"
     
-    # Build with progress output
-    if docker buildx build $args "$context" 2>&1 | grep -v "^#"; then
+    # Build with progress output - show all steps, clean up formatting
+    local commit_hash=""
+    local repo_base=$(get_repo_url "$name")
+    
+    # Use pipe for reliable live streaming and exit code capture via PIPESTATUS
+    docker buildx build $args "$context" 2>&1 | while IFS= read -r line; do
+        # Detect commit hash (BuildKit format for git source)
+        if [[ "$line" =~ ([0-9a-f]{40})\ +refs/heads/ ]]; then
+            commit_hash="${BASH_REMATCH[1]}"
+            # Save commit hash for use after the pipe
+            echo "$commit_hash" > "/tmp/commit_${name}.hash"
+        fi
+
+        # Filter logic:
+        # 1. Keep lines that don't start with # (actual command outputs like npm build logs)
+        # 2. Keep lines that start with # and look like [step N/M]
+        # 3. Suppress technical noise like raw hashes or internal metadata
+        if [[ ! "$line" =~ ^# ]] || [[ "$line" =~ ^#[0-9]+\ +\[.*\] ]]; then
+            # Clean BuildKit prefix for better readability
+            local clean_line=$(echo "$line" | sed 's/^#[0-9]\+ //')
+            if [[ -z "$clean_line" ]]; then continue; fi
+            
+            # Highlight CACHED steps in grey to make them less distracting
+            if [[ "$clean_line" == *"CACHED"* ]]; then
+                echo -e "  → \033[0;90m$clean_line\033[0m"
+            else
+                echo "  → $clean_line"
+            fi
+        fi
+    done
+    
+    local exit_code=${PIPESTATUS[0]}
+    commit_hash=$(cat "/tmp/commit_${name}.hash" 2>/dev/null || echo "")
+    rm -f "/tmp/commit_${name}.hash"
+
+    if [ $exit_code -eq 0 ]; then
         success "Built $name"
+        if [ -n "$commit_hash" ] && [ -n "$repo_base" ]; then
+            info "Source: ${repo_base}/commit/${commit_hash}"
+        fi
         return 0
     else
         error "Failed to build $name"
@@ -165,6 +248,7 @@ build_image() {
 PLATFORMS="$DEFAULT_PLATFORMS"
 PUSH="true"
 PARALLEL="false"
+FORCE="false"
 IMAGES=()
 
 while [[ $# -gt 0 ]]; do
@@ -174,6 +258,7 @@ while [[ $# -gt 0 ]]; do
         --setup) setup_buildx ;;
         -p|--platforms) PLATFORMS="$2"; shift 2 ;;
         -n|--no-push) PUSH="false"; shift ;;
+        -f|--force) FORCE="true"; shift ;;
         --parallel) PARALLEL="true"; shift ;;
         all) IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend); shift ;;
         nginx|backend|frontend|getdata|portfolio|bae-portfolio|subsnepal-frontend|subsnepal-backend) IMAGES+=("$1"); shift ;;
@@ -212,7 +297,7 @@ if [ "$PARALLEL" = "true" ]; then
     start_times=()
     for img in "${IMAGES[@]}"; do
         date +%s > "/tmp/start-${img}.time"
-        build_image "$img" "$PLATFORMS" "$PUSH" > "/tmp/build-${img}.log" 2>&1 &
+        build_image "$img" "$PLATFORMS" "$PUSH" "$FORCE" > "/tmp/build-${img}.log" 2>&1 &
         pids+=($!)
     done
     
@@ -277,7 +362,7 @@ else
     start_total=$(date +%s)
     for img in "${IMAGES[@]}"; do
         start_img=$(date +%s)
-        build_image "$img" "$PLATFORMS" "$PUSH" || exit 1
+        build_image "$img" "$PLATFORMS" "$PUSH" "$FORCE" || exit 1
         end_img=$(date +%s)
         time_img=$((end_img - start_img))
         info "Time for ${img}: $(date -u -r $time_img +%M:%S) min"
