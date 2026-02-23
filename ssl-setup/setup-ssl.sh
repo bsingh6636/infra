@@ -25,7 +25,10 @@ else
 fi
 
 CERT_DIR="/etc/letsencrypt"
-NGINX_CONF_DIR="./nginx/conf.d"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+NGINX_CONF_DIR="$PROJECT_ROOT/nginx/conf.d"
+DOCKER_COMPOSE_PROD="$PROJECT_ROOT/docker-compose.prod.yml"
+
 if [ -z "$CERT_NAME" ]; then
     CERT_NAME="${DOMAINS[0]}"
 fi
@@ -97,12 +100,12 @@ install_certbot() {
 
 stop_nginx_container() {
     log_info "Stopping nginx container to free port 80..."
-    docker compose -f docker-compose.prod.yml stop nginx 2>/dev/null || true
+    docker compose -f "$DOCKER_COMPOSE_PROD" stop nginx 2>/dev/null || true
 }
 
 start_nginx_container() {
     log_info "Starting nginx container..."
-    docker compose -f docker-compose.prod.yml up -d nginx
+    docker compose -f "$DOCKER_COMPOSE_PROD" up -d nginx
 }
 
 obtain_certificates() {
@@ -137,14 +140,13 @@ setup_auto_renewal() {
     log_info "Setting up automatic renewal..."
     
     # Create renewal hook script
-    cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'EOF'
+    cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << EOF
 #!/bin/bash
 # Reload nginx after certificate renewal
-docker compose -f /path/to/docker-compose.prod.yml exec nginx nginx -s reload
+docker compose -f $DOCKER_COMPOSE_PROD exec nginx nginx -s reload
 EOF
     
-    # Update path in script
-    sed -i "s|/path/to|$(pwd)|g" /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+    # No longer need sed replacement as we use the absolute path variable
     chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
     
     # Test renewal process
@@ -170,7 +172,7 @@ update_nginx_config() {
 update_docker_compose() {
     log_info "Checking docker-compose.prod.yml..."
     
-    if ! grep -q "/etc/letsencrypt" docker-compose.prod.yml; then
+    if ! grep -q "/etc/letsencrypt" "$DOCKER_COMPOSE_PROD"; then
         log_warn "You need to mount SSL certificates in docker-compose.prod.yml"
         log_info "Add these volumes to nginx service:"
         echo "    volumes:"
