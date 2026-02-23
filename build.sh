@@ -31,6 +31,32 @@ export BUILDKIT_PROGRESS=plain              # Detailed progress output
 export COMPOSE_DOCKER_CLI_BUILD=1           # Use BuildKit for compose
 MAX_PARALLEL_BUILDS=5                       # Maximum parallel builds
 
+# SSH Agent Auto-Setup
+setup_ssh_agent() {
+    if ! ssh-add -l &> /dev/null; then
+        info "No SSH identities found. Setting up SSH agent..."
+        
+        # Start agent if not running
+        if [ -z "$SSH_AUTH_SOCK" ]; then
+            eval "$(ssh-agent -s)" > /dev/null
+        fi
+        
+        # Try to add default keys
+        local key_added=false
+        for key in "id_ed25519" "id_rsa"; do
+            if [ -f "$HOME/.ssh/$key" ]; then
+                ssh-add "$HOME/.ssh/$key" 2>/dev/null && key_added=true
+            fi
+        done
+        
+        if [ "$key_added" = "true" ]; then
+            success "SSH agent prepared with identities."
+        else
+            warn "No default SSH keys found in ~/.ssh/. Private repo builds may fail."
+        fi
+    fi
+}
+
 # Helper functions
 info() { echo -e "${BLUE}ℹ${NC} $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
@@ -275,6 +301,9 @@ docker buildx inspect multiplatform &> /dev/null || {
     docker buildx create --name multiplatform --use --bootstrap
 }
 docker buildx use multiplatform
+
+# Setup SSH Agent for private repositories
+setup_ssh_agent
 
 # Build
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
