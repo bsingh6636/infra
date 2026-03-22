@@ -230,6 +230,23 @@ check_new_domains() {
     fi
 }
 
+verify_cert_domains() {
+    # Verify the actual cert file contains ALL requested domains
+    local cert_path="/etc/letsencrypt/live/$CERT_NAME/cert.pem"
+    if [ ! -f "$cert_path" ]; then
+        return 1
+    fi
+    local cert_text
+    cert_text=$(openssl x509 -in "$cert_path" -noout -text 2>/dev/null)
+    for domain in "${DOMAINS[@]}"; do
+        if ! echo "$cert_text" | grep -qi "DNS:$domain"; then
+            log_warn "Domain $domain is NOT in the current certificate"
+            return 1
+        fi
+    done
+    return 0
+}
+
 obtain_certificates() {
     log_info "Obtaining SSL certificates (HTTP-01 standalone)..."
 
@@ -244,7 +261,8 @@ obtain_certificates() {
     
     # Attempt certificate using standalone mode
     set +e
-    certbot certonly \
+    local certbot_output
+    certbot_output=$(certbot certonly \
         --standalone \
         --non-interactive \
         --agree-tos \
@@ -253,12 +271,25 @@ obtain_certificates() {
         --expand \
         $FORCE_RENEWAL \
         $DOMAIN_ARGS \
-        --preferred-challenges http 2>&1
+        --preferred-challenges http 2>&1)
     local exit_code=$?
     set -e
+
+    echo "$certbot_output"
     
     if [ $exit_code -eq 0 ]; then
-        log_info "✓ Certificates obtained successfully via HTTP-01"
+        # Certbot may return 0 with "no action taken" — verify cert actually has all domains
+        if echo "$certbot_output" | grep -qi "no action taken"; then
+            if verify_cert_domains; then
+                log_info "✓ Certificate already covers all domains"
+            else
+                log_warn "Certificate is missing domains. Certbot skipped re-issuance."
+                log_warn "Falling back to DNS-01 to re-issue with all domains..."
+                obtain_certificates_dns01
+            fi
+        else
+            log_info "✓ Certificates obtained successfully via HTTP-01"
+        fi
     else
         log_warn "HTTP-01 challenge failed. Checking for Cloudflare-proxied domains..."
         detect_cloudflare_domains
@@ -288,12 +319,16 @@ EOF
     
     # Test renewal process (stop nginx so certbot can use port 80)
     stop_nginx_container
-    certbot renew --dry-run
+    set +e
+    certbot renew --dry-run 2>&1
+    local renew_exit=$?
+    set -e
     
-    if [ $? -eq 0 ]; then
+    if [ $renew_exit -eq 0 ]; then
         log_info "✓ Auto-renewal configured (certbot will run via systemd timer)"
     else
-        log_warn "Renewal test failed - please check configuration"
+        log_warn "Renewal dry-run failed (likely Cloudflare-proxied domains)."
+        log_warn "Auto-renewal via systemd will use pre/post hooks below."
     fi
     start_nginx_container
 
