@@ -68,6 +68,99 @@ check_dns() {
     done
 }
 
+is_cloudflare_domain() {
+    local domain="$1"
+    # Check if the domain is proxied through Cloudflare by looking for cf-ray header
+    local headers
+    headers=$(curl -sI --max-time 5 "http://$domain" 2>/dev/null || true)
+    if echo "$headers" | grep -qi "cf-ray\|server: cloudflare"; then
+        return 0
+    fi
+    return 1
+}
+
+detect_cloudflare_domains() {
+    CF_DOMAINS=()
+    NON_CF_DOMAINS=()
+    log_info "Detecting Cloudflare-proxied domains..."
+    for domain in "${DOMAINS[@]}"; do
+        if is_cloudflare_domain "$domain"; then
+            CF_DOMAINS+=("$domain")
+            log_warn "⚡ Cloudflare-proxied: $domain"
+        else
+            NON_CF_DOMAINS+=("$domain")
+            log_info "✓ Direct: $domain"
+        fi
+    done
+}
+
+install_certbot_dns_cloudflare() {
+    log_info "Installing certbot-dns-cloudflare plugin..."
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    fi
+    case $OS in
+        ubuntu|debian)
+            apt-get install -y python3-certbot-dns-cloudflare
+            ;;
+        centos|rhel|fedora)
+            pip3 install certbot-dns-cloudflare
+            ;;
+        *)
+            pip3 install certbot-dns-cloudflare
+            ;;
+    esac
+    log_info "✓ certbot-dns-cloudflare installed"
+}
+
+setup_cloudflare_credentials() {
+    local cred_file="/etc/letsencrypt/cloudflare.ini"
+    if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+        log_error "CLOUDFLARE_API_TOKEN is not set in domains.conf"
+        log_error "Create one at: https://dash.cloudflare.com/profile/api-tokens"
+        log_error "Required permissions: Zone → DNS → Edit"
+        exit 1
+    fi
+    mkdir -p /etc/letsencrypt
+    cat > "$cred_file" << EOF
+dns_cloudflare_api_token = $CLOUDFLARE_API_TOKEN
+EOF
+    chmod 600 "$cred_file"
+    log_info "✓ Cloudflare credentials configured"
+}
+
+obtain_certificates_dns01() {
+    log_info "Retrying failed domains via DNS-01 (Cloudflare) challenge..."
+
+    install_certbot_dns_cloudflare
+    setup_cloudflare_credentials
+
+    # Build domain arguments for ALL domains (single cert)
+    DOMAIN_ARGS=""
+    for domain in "${DOMAINS[@]}"; do
+        DOMAIN_ARGS="$DOMAIN_ARGS -d $domain"
+    done
+
+    certbot certonly \
+        --dns-cloudflare \
+        --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+        --dns-cloudflare-propagation-seconds 30 \
+        --non-interactive \
+        --agree-tos \
+        --email "$EMAIL" \
+        --cert-name "$CERT_NAME" \
+        --expand \
+        $DOMAIN_ARGS
+
+    if [ $? -eq 0 ]; then
+        log_info "✓ Certificates obtained successfully via DNS-01"
+    else
+        log_error "DNS-01 challenge also failed. Check Cloudflare API token and DNS settings."
+        exit 1
+    fi
+}
+
 install_certbot() {
     log_info "Installing Certbot..."
     
@@ -109,7 +202,7 @@ start_nginx_container() {
 }
 
 obtain_certificates() {
-    log_info "Obtaining SSL certificates..."
+    log_info "Obtaining SSL certificates (HTTP-01 standalone)..."
     
     # Build domain arguments
     DOMAIN_ARGS=""
@@ -117,7 +210,8 @@ obtain_certificates() {
         DOMAIN_ARGS="$DOMAIN_ARGS -d $domain"
     done
     
-    # Obtain certificate using standalone mode
+    # Attempt certificate using standalone mode
+    set +e
     certbot certonly \
         --standalone \
         --non-interactive \
@@ -126,13 +220,23 @@ obtain_certificates() {
         --cert-name "$CERT_NAME" \
         --expand \
         $DOMAIN_ARGS \
-        --preferred-challenges http
+        --preferred-challenges http 2>&1
+    local exit_code=$?
+    set -e
     
-    if [ $? -eq 0 ]; then
-        log_info "✓ Certificates obtained successfully"
+    if [ $exit_code -eq 0 ]; then
+        log_info "✓ Certificates obtained successfully via HTTP-01"
     else
-        log_error "Failed to obtain certificates"
-        exit 1
+        log_warn "HTTP-01 challenge failed. Checking for Cloudflare-proxied domains..."
+        detect_cloudflare_domains
+        if [ ${#CF_DOMAINS[@]} -gt 0 ]; then
+            log_warn "Found ${#CF_DOMAINS[@]} Cloudflare-proxied domain(s). Falling back to DNS-01..."
+            obtain_certificates_dns01
+        else
+            log_error "No Cloudflare domains detected. HTTP-01 failed for another reason."
+            log_error "Check firewall rules and ensure port 80 is open."
+            exit 1
+        fi
     fi
 }
 
