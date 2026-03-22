@@ -207,8 +207,34 @@ start_nginx_container() {
     docker compose -f "$DOCKER_COMPOSE_PROD" up -d nginx
 }
 
+check_new_domains() {
+    # Check if the existing cert already covers all requested domains
+    local cert_path="/etc/letsencrypt/live/$CERT_NAME/cert.pem"
+    if [ ! -f "$cert_path" ]; then
+        return 0  # No existing cert, needs issuance
+    fi
+
+    local needs_update=false
+    for domain in "${DOMAINS[@]}"; do
+        if ! openssl x509 -in "$cert_path" -noout -text 2>/dev/null | grep -qi "DNS:$domain"; then
+            log_info "New domain detected: $domain"
+            needs_update=true
+        fi
+    done
+
+    if [ "$needs_update" = true ]; then
+        FORCE_RENEWAL="--force-renewal"
+        log_info "Certificate will be re-issued to include new domain(s)"
+    else
+        FORCE_RENEWAL=""
+    fi
+}
+
 obtain_certificates() {
     log_info "Obtaining SSL certificates (HTTP-01 standalone)..."
+
+    # Check if new domains need to be added to the cert
+    check_new_domains
     
     # Build domain arguments
     DOMAIN_ARGS=""
@@ -225,6 +251,7 @@ obtain_certificates() {
         --email "$EMAIL" \
         --cert-name "$CERT_NAME" \
         --expand \
+        $FORCE_RENEWAL \
         $DOMAIN_ARGS \
         --preferred-challenges http 2>&1
     local exit_code=$?
@@ -259,7 +286,8 @@ EOF
     # No longer need sed replacement as we use the absolute path variable
     chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
     
-    # Test renewal process
+    # Test renewal process (stop nginx so certbot can use port 80)
+    stop_nginx_container
     certbot renew --dry-run
     
     if [ $? -eq 0 ]; then
@@ -267,6 +295,20 @@ EOF
     else
         log_warn "Renewal test failed - please check configuration"
     fi
+    start_nginx_container
+
+    # Create pre/post hooks so systemd renewal also stops/starts nginx
+    cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh << EOF
+#!/bin/bash
+docker compose -f $DOCKER_COMPOSE_PROD stop nginx
+EOF
+    chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
+
+    cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh << EOF
+#!/bin/bash
+docker compose -f $DOCKER_COMPOSE_PROD up -d nginx
+EOF
+    chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 }
 
 update_nginx_config() {
