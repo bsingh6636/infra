@@ -29,6 +29,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NGINX_CONF_DIR="$PROJECT_ROOT/nginx/conf.d"
 DOCKER_COMPOSE_PROD="$PROJECT_ROOT/docker-compose.prod.yml"
 
+# Load CLOUDFLARE_API_TOKEN from project root .env if not set in domains.conf
+if [ -z "$CLOUDFLARE_API_TOKEN" ] && [ -f "$PROJECT_ROOT/.env" ]; then
+    CLOUDFLARE_API_TOKEN=$(grep -E '^CLOUDFLARE_API_TOKEN=' "$PROJECT_ROOT/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+export CLOUDFLARE_API_TOKEN
+fi
+
 if [ -z "$CERT_NAME" ]; then
     CERT_NAME="${DOMAINS[0]}"
 fi
