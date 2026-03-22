@@ -30,3 +30,4 @@ credentials/
 # Logs
 *.log
 logs/
+.aider*
