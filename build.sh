@@ -227,13 +227,22 @@ build_image() {
     [ -n "$SSH_AUTH_SOCK" ] && args="$args --ssh default"
     
     # Build with progress output - show all steps, clean up formatting
-    local commit_hash=""
     local repo_base=$(get_repo_url "$name")
+    # Pre-resolve commit hash from remote before build starts
+    local commit_hash=""
+    if [[ "$context" == git@* ]] || [[ "$context" == https://github* ]]; then
+        local branch=$(echo "$context" | grep -oP '#\K[^:]+' || true)
+        local repo_url=$(echo "$context" | sed 's/#.*//')
+        commit_hash=$(git ls-remote "$repo_url" "refs/heads/${branch}" 2>/dev/null | cut -f1 || true)
+        [ -n "$commit_hash" ] && info "Commit: ${commit_hash:0:12} (${branch})"
+    fi
     
     # Use pipe for reliable live streaming and exit code capture via PIPESTATUS
     docker buildx build $args "$context" 2>&1 | while IFS= read -r line; do
         # Detect commit hash (BuildKit format for git source)
-        if [[ "$line" =~ ([0-9a-f]{40})\ +refs/heads/ ]]; then
+        if [[ "$line" =~ ([0-9a-f]{40})\ +refs/heads/ ]] || \
+           [[ "$line" =~ resolve\ ([0-9a-f]{40}) ]] || \
+           [[ "$line" =~ ^([0-9a-f]{40})$ ]]; then
             commit_hash="${BASH_REMATCH[1]}"
             # Save commit hash for use after the pipe
             echo "$commit_hash" > "/tmp/commit_${name}.hash"
