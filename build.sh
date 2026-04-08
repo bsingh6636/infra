@@ -134,7 +134,7 @@ get_context() {
         bae-portfolio) echo "git@github.com:bsingh6636/cuddly-octo-funicular.git#main" ;;
         subsnepal-frontend) echo "git@github.com:bsingh6636/oasisNep.git#main:reactJs" ;;
         subsnepal-backend) echo "git@github.com:bsingh6636/oasisNep.git#main:nodejs" ;;
-        municipal-backend) echo "git@github.com:codesujan01/Municipal-Backend.git#incomplete_ai_help" ;;
+        municipal-backend) echo "git@github.com:codesujan01/Municipal-Backend.git#in_progress" ;;
         *) echo ""; return 1 ;;
     esac
 }

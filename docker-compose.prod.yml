@@ -32,6 +32,11 @@ services:
       # Optional: Mount certbot webroot for renewals
       - ./certbot/www:/var/www/certbot:ro
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     image: bsingh6636/bsingh-backend:latest
@@ -40,7 +45,19 @@ services:
       - bsingh-net
     env_file:
       - .env
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=256
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
 
   frontend:
     image: bsingh6636/bsingh-frontend:latest
@@ -48,6 +65,16 @@ services:
     networks:
       - bsingh-net
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 64M
 
   getdata:
     image: bsingh6636/bsingh-getdata:latest
@@ -56,7 +83,19 @@ services:
       - bsingh-net
     env_file:
       - .env
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=128
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M
 
   portfolio:
     image: bsingh6636/bsingh-portfolio:latest
@@ -66,6 +105,16 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
 
   bae-portfolio:
     image: bsingh6636/bsingh-bae-portfolio:latest
@@ -75,6 +124,16 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
 
   subsnepal-frontend:
     image: bsingh6636/bsingh-subsnepal-frontend:latest
@@ -82,6 +141,16 @@ services:
     networks:
       - bsingh-net
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
 
   subsnepal-backend:
     image: bsingh6636/bsingh-subsnepal-backend:latest
@@ -90,7 +159,19 @@ services:
       - bsingh-net
     env_file:
       - .env
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=128
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M
 
   municipal-backend:
     image: bsingh6636/bsingh-municipal-backend:latest
@@ -99,4 +180,16 @@ services:
       - bsingh-net
     env_file:
       - .env
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=128
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M

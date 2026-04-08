@@ -84,7 +84,7 @@ services:
 
   municipal-backend:
     build:
-      context: https://github.com/codesujan01/Municipal-Backend.git#incomplete_ai_help
+      context: https://github.com/codesujan01/Municipal-Backend.git#in_progress
     image: bsingh6636/bsingh-municipal-backend:latest
     container_name: bsingh-municipal-backend
     networks:
