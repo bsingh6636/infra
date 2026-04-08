@@ -24,7 +24,7 @@ services:
 
   backend:
     build:
-      context: https://github.com/bsingh6636/EduCors-Helper.git#main:BackEnd
+      context: https://github.com/bsingh6636/EduCors-Helper.git#master:BackEnd
     image: bsingh6636/bsingh-backend:latest
     container_name: bsingh-backend
     networks:
@@ -34,7 +34,7 @@ services:
 
   frontend:
     build:
-      context: https://github.com/bsingh6636/EduCors-Helper.git#main:FrontEnd
+      context: https://github.com/bsingh6636/EduCors-Helper.git#master:FrontEnd
     image: bsingh6636/bsingh-frontend:latest
     container_name: bsingh-frontend
     networks:
@@ -42,7 +42,7 @@ services:
 
   getdata:
     build:
-      context: https://github.com/bsingh6636/EduCors-Helper.git#main:getdata
+      context: https://github.com/bsingh6636/EduCors-Helper.git#master:getdata
     image: bsingh6636/bsingh-getdata:latest
     container_name: bsingh-getdata
     networks:

@@ -127,9 +127,9 @@ list_images() {
 get_context() {
     case $1 in
         nginx) echo "./nginx" ;;
-        backend) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:BackEnd" ;;
-        frontend) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:FrontEnd" ;;
-        getdata) echo "https://github.com/bsingh6636/EduCors-Helper.git#main:getdata" ;;
+        backend) echo "https://github.com/bsingh6636/EduCors-Helper.git#master:BackEnd" ;;
+        frontend) echo "https://github.com/bsingh6636/EduCors-Helper.git#master:FrontEnd" ;;
+        getdata) echo "https://github.com/bsingh6636/EduCors-Helper.git#master:getdata" ;;
         portfolio) echo "https://github.com/bsingh6636/myPortfolio.git#main" ;;
         bae-portfolio) echo "git@github.com:bsingh6636/cuddly-octo-funicular.git#main" ;;
         subsnepal-frontend) echo "git@github.com:bsingh6636/oasisNep.git#main:reactJs" ;;
