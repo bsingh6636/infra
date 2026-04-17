@@ -118,6 +118,7 @@ list_images() {
     echo "  • subsnepal-frontend"
     echo "  • subsnepal-backend"
     echo "  • municipal-backend"
+    echo "  • municipal-admin"
     exit 0
 }
 
@@ -134,7 +135,8 @@ get_context() {
         bae-portfolio) echo "git@github.com:bsingh6636/cuddly-octo-funicular.git#main" ;;
         subsnepal-frontend) echo "git@github.com:bsingh6636/oasisNep.git#main:reactJs" ;;
         subsnepal-backend) echo "git@github.com:bsingh6636/oasisNep.git#main:nodejs" ;;
-        municipal-backend) echo "git@github.com:codesujan01/Municipal-Backend.git#in_progress" ;;
+        municipal-backend) echo "git@github.com:codesujan01/Municipal-Backend.git#media_cleanup" ;;
+        municipal-admin) echo "git@github.com:codesujan01/Municipal-admin-web.git#media_cleanup" ;;
         *) echo ""; return 1 ;;
     esac
 }
@@ -146,6 +148,7 @@ get_repo_url() {
         bae-portfolio) echo "https://github.com/bsingh6636/cuddly-octo-funicular" ;;
         subsnepal-frontend|subsnepal-backend) echo "https://github.com/bsingh6636/oasisNep" ;;
         municipal-backend) echo "https://github.com/codesujan01/Municipal-Backend" ;;
+        municipal-admin) echo "https://github.com/codesujan01/Municipal-admin-web" ;;
         *) echo "" ;;
     esac
 }
@@ -231,10 +234,10 @@ build_image() {
     # Pre-resolve commit hash from remote before build starts
     local commit_hash=""
     if [[ "$context" == git@* ]] || [[ "$context" == https://github* ]]; then
-        local branch=$(echo "$context" | grep -oP '#\K[^:]+' || true)
+        local branch=$(echo "$context" | sed 's/.*#//' | sed 's/:.*//')
         local repo_url=$(echo "$context" | sed 's/#.*//')
         commit_hash=$(git ls-remote "$repo_url" "refs/heads/${branch}" 2>/dev/null | cut -f1 || true)
-        [ -n "$commit_hash" ] && info "Commit: ${commit_hash:0:12} (${branch})"
+        [ -n "$commit_hash" ] && info "Commit: ${commit_hash:0:12} (${branch}) → ${repo_url}"
     fi
     
     # Use pipe for reliable live streaming and exit code capture via PIPESTATUS
@@ -298,14 +301,14 @@ while [[ $# -gt 0 ]]; do
         -n|--no-push) PUSH="false"; shift ;;
         -f|--force) FORCE="true"; shift ;;
         --parallel) PARALLEL="true"; shift ;;
-        all) IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend municipal-backend); shift ;;
-        nginx|backend|frontend|getdata|portfolio|bae-portfolio|subsnepal-frontend|subsnepal-backend|municipal-backend) IMAGES+=("$1"); shift ;;
+        all) IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend municipal-backend municipal-admin); shift ;;
+        nginx|backend|frontend|getdata|portfolio|bae-portfolio|subsnepal-frontend|subsnepal-backend|municipal-backend|municipal-admin) IMAGES+=("$1"); shift ;;
         *) error "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 # Default to all if none specified
-[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend municipal-backend)
+[ ${#IMAGES[@]} -eq 0 ] && IMAGES=(nginx backend frontend getdata portfolio bae-portfolio subsnepal-frontend subsnepal-backend municipal-backend municipal-admin)
 
 # Ensure buildx exists
 docker buildx inspect multiplatform &> /dev/null || {

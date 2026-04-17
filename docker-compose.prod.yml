@@ -23,6 +23,7 @@ services:
       - subsnepal-frontend
       - subsnepal-backend
       - municipal-backend
+      - municipal-admin
     volumes:
       # Mount the SSL nginx config (overrides image config)
       - ./ssl-setup/bsingh-ssl.conf:/etc/nginx/conf.d/bsingh.conf:ro
@@ -193,3 +194,20 @@ services:
         limits:
           cpus: "0.25"
           memory: 192M
+
+  municipal-admin:
+    image: bsingh6636/bsingh-municipal-admin:latest
+    container_name: bsingh-municipal-admin
+    networks:
+      - bsingh-net
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M

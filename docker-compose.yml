@@ -84,8 +84,16 @@ services:
 
   municipal-backend:
     build:
-      context: https://github.com/codesujan01/Municipal-Backend.git#in_progress
+      context: git@github.com:codesujan01/Municipal-Backend.git#media_cleanup
     image: bsingh6636/bsingh-municipal-backend:latest
     container_name: bsingh-municipal-backend
+    networks:
+      - bsingh-net
+
+  municipal-admin:
+    build:
+      context: git@github.com:codesujan01/Municipal-admin-web.git#media_cleanup
+    image: bsingh6636/bsingh-municipal-admin:latest
+    container_name: bsingh-municipal-admin
     networks:
       - bsingh-net
