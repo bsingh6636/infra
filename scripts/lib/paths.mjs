@@ -7,6 +7,7 @@ export const repoRoot = path.resolve(libDir, "..", "..");
 export const defaultStackPath = path.join(repoRoot, "config", "stack.yaml");
 export const generatedRoot = path.join(repoRoot, "generated");
 export const generatedEdgeStaticRoot = path.join(generatedRoot, "edge-static");
+export const generatedIsolatedPreviewRoot = path.join(generatedRoot, "isolated-preview");
 
 export function resolveFromRepo(...segments) {
   return path.resolve(repoRoot, ...segments);

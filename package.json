@@ -8,9 +8,14 @@
     "render": "node scripts/render/index.mjs",
     "build:edge-static": "node scripts/build/index.mjs --edge-static",
     "build:edge-static:stub": "node scripts/build/index.mjs --edge-static --stub",
+    "build:isolated-preview": "node scripts/build/index.mjs --isolated-preview",
+    "build:isolated-preview:stub": "node scripts/build/index.mjs --isolated-preview --stub",
     "preview:edge-static:render": "node scripts/preview/edge-static.mjs render",
     "preview:edge-static:up": "node scripts/preview/edge-static.mjs up",
-    "preview:edge-static:down": "node scripts/preview/edge-static.mjs down"
+    "preview:edge-static:down": "node scripts/preview/edge-static.mjs down",
+    "preview:isolated:render": "node scripts/preview/isolated.mjs render",
+    "preview:isolated:up": "node scripts/preview/isolated.mjs up",
+    "preview:isolated:down": "node scripts/preview/isolated.mjs down"
   },
   "dependencies": {
     "yaml": "^2.5.1"

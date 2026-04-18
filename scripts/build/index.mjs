@@ -2,11 +2,12 @@ import { loadStack } from "../lib/load-stack.mjs";
 import { normalizeStack } from "../lib/normalize-stack.mjs";
 import { defaultStackPath } from "../lib/paths.mjs";
 import { buildEdgeStaticSites } from "./edge-static.mjs";
+import { buildIsolatedPreviewServices } from "./isolated-preview.mjs";
 
 function parseArgs(argv) {
   const options = {
     stackPath: defaultStackPath,
-    edgeStatic: false,
+    mode: null,
     stub: false,
     services: [],
   };
@@ -15,7 +16,12 @@ function parseArgs(argv) {
     const arg = argv[index];
 
     if (arg === "--edge-static") {
-      options.edgeStatic = true;
+      options.mode = "edge-static";
+      continue;
+    }
+
+    if (arg === "--isolated-preview") {
+      options.mode = "isolated-preview";
       continue;
     }
 
@@ -51,8 +57,8 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
-  if (!options.edgeStatic) {
-    throw new Error("Phase 3 only supports --edge-static builds.");
+  if (!options.mode) {
+    throw new Error("Choose one build mode: --edge-static or --isolated-preview.");
   }
 
   return options;
@@ -62,15 +68,27 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const loaded = await loadStack(options.stackPath);
   const stack = normalizeStack(loaded.raw);
-  const builtServices = await buildEdgeStaticSites(stack, {
-    stub: options.stub,
-    services: options.services,
-  });
+  const builtServices =
+    options.mode === "edge-static"
+      ? await buildEdgeStaticSites(stack, {
+          stub: options.stub,
+          services: options.services,
+        })
+      : await buildIsolatedPreviewServices(stack, {
+          stub: options.stub,
+          services: options.services,
+        });
 
-  console.log("Built edge-static services:");
+  console.log(
+    options.mode === "edge-static"
+      ? "Built edge-static services:"
+      : "Built isolated preview services:",
+  );
 
   for (const item of builtServices) {
-    console.log(`- ${item.service} (${item.mode}) -> ${item.outputDirectory}`);
+    console.log(
+      `- ${item.service} (${item.mode}) -> ${item.outputDirectory ?? item.contextDirectory}`,
+    );
   }
 }
 
