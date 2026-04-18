@@ -3,6 +3,7 @@ import { normalizeStack } from "../lib/normalize-stack.mjs";
 import { defaultStackPath } from "../lib/paths.mjs";
 import { buildEdgeStaticSites } from "./edge-static.mjs";
 import { buildIsolatedPreviewServices } from "./isolated-preview.mjs";
+import { buildSharedNodePreviewGroups } from "./shared-node-preview.mjs";
 
 function parseArgs(argv) {
   const options = {
@@ -22,6 +23,11 @@ function parseArgs(argv) {
 
     if (arg === "--isolated-preview") {
       options.mode = "isolated-preview";
+      continue;
+    }
+
+    if (arg === "--shared-node-preview") {
+      options.mode = "shared-node-preview";
       continue;
     }
 
@@ -74,15 +80,22 @@ async function main() {
           stub: options.stub,
           services: options.services,
         })
-      : await buildIsolatedPreviewServices(stack, {
-          stub: options.stub,
-          services: options.services,
-        });
+      : options.mode === "isolated-preview"
+        ? await buildIsolatedPreviewServices(stack, {
+            stub: options.stub,
+            services: options.services,
+          })
+        : await buildSharedNodePreviewGroups(stack, {
+            stub: options.stub,
+            services: options.services,
+          });
 
   console.log(
     options.mode === "edge-static"
       ? "Built edge-static services:"
-      : "Built isolated preview services:",
+      : options.mode === "isolated-preview"
+        ? "Built isolated preview services:"
+        : "Built shared-node preview services:",
   );
 
   for (const item of builtServices) {

@@ -10,12 +10,20 @@
     "build:edge-static:stub": "node scripts/build/index.mjs --edge-static --stub",
     "build:isolated-preview": "node scripts/build/index.mjs --isolated-preview",
     "build:isolated-preview:stub": "node scripts/build/index.mjs --isolated-preview --stub",
+    "build:shared-node-preview": "node scripts/build/index.mjs --shared-node-preview",
+    "build:shared-node-preview:stub": "node scripts/build/index.mjs --shared-node-preview --stub",
     "preview:edge-static:render": "node scripts/preview/edge-static.mjs render",
     "preview:edge-static:up": "node scripts/preview/edge-static.mjs up",
     "preview:edge-static:down": "node scripts/preview/edge-static.mjs down",
     "preview:isolated:render": "node scripts/preview/isolated.mjs render",
     "preview:isolated:up": "node scripts/preview/isolated.mjs up",
-    "preview:isolated:down": "node scripts/preview/isolated.mjs down"
+    "preview:isolated:down": "node scripts/preview/isolated.mjs down",
+    "preview:shared-node:render": "node scripts/preview/shared-node.mjs render",
+    "preview:shared-node:up": "node scripts/preview/shared-node.mjs up",
+    "preview:shared-node:down": "node scripts/preview/shared-node.mjs down",
+    "release:publish": "node scripts/deploy/publish.mjs",
+    "release:apply": "node scripts/deploy/apply.mjs",
+    "release:rollback": "node scripts/rollback/index.mjs"
   },
   "dependencies": {
     "yaml": "^2.5.1"
