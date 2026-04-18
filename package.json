@@ -5,7 +5,12 @@
   "scripts": {
     "validate": "node scripts/validate/index.mjs",
     "validate:remote": "node scripts/validate/index.mjs --remote",
-    "render": "node scripts/render/index.mjs"
+    "render": "node scripts/render/index.mjs",
+    "build:edge-static": "node scripts/build/index.mjs --edge-static",
+    "build:edge-static:stub": "node scripts/build/index.mjs --edge-static --stub",
+    "preview:edge-static:render": "node scripts/preview/edge-static.mjs render",
+    "preview:edge-static:up": "node scripts/preview/edge-static.mjs up",
+    "preview:edge-static:down": "node scripts/preview/edge-static.mjs down"
   },
   "dependencies": {
     "yaml": "^2.5.1"
