@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "validate": "node scripts/validate/index.mjs",
-    "validate:remote": "node scripts/validate/index.mjs --remote"
+    "validate:remote": "node scripts/validate/index.mjs --remote",
+    "render": "node scripts/render/index.mjs"
   },
   "dependencies": {
     "yaml": "^2.5.1"
