@@ -1,0 +1,12 @@
+{
+  "name": "infra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate/index.mjs",
+    "validate:remote": "node scripts/validate/index.mjs --remote"
+  },
+  "dependencies": {
+    "yaml": "^2.5.1"
+  }
+}

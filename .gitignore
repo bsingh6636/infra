@@ -31,3 +31,13 @@ credentials/
 *.log
 logs/
 .aider*
+
+# Phase 1 implementation artifacts
+node_modules/
+generated/
+
+# Local runtime env files
+env/global.env
+env/global.secrets.env
+env/services/*.env
+env/services-secrets/*.env
