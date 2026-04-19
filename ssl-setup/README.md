@@ -1,5 +1,13 @@
 # 🔐 SSL/HTTPS Setup
 
+> Legacy notice: this file documents the older manual SSL setup flow.
+>
+> For the current config-driven workflow, start with:
+> - [`../readme/README.md`](../readme/README.md)
+> - [`../readme/MASTER_GUIDE.md`](../readme/MASTER_GUIDE.md)
+>
+> TLS integration in the new workflow is still deferred, so keep this folder as reference material only until the final cutover plan is completed.
+
 **Industry-grade free SSL certificates using Let's Encrypt**
 
 ## 📂 Files

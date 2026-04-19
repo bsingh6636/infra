@@ -1,0 +1,218 @@
+# Service Management
+
+## Where To Edit
+
+All service definitions live in [`../config/stack.yaml`](../config/stack.yaml).
+
+The main sections you will touch are:
+
+- `sources`
+- `services`
+- `ingress`
+- sometimes `groups`
+
+## Current Service Types
+
+### Edge-Static Frontends
+
+- `portfolio-web`
+- `ranju-web`
+- `cors-web`
+- `municipal-admin`
+
+### Isolated Services
+
+- `subsnepal-web`
+- `subsnepal-api`
+
+### Shared-Node Services
+
+- `cors-api`
+- `getdata`
+- `municipal-api`
+
+## Add A New Edge-Static Frontend
+
+Add:
+
+1. a `sources.<key>` entry
+2. a `services.<name>` entry with `deploy.mode: edge-static`
+3. an `ingress` entry with `upstream.type: static`
+
+Example:
+
+```yaml
+sources:
+  my_frontend:
+    repo: git@github.com:me/my-frontend.git
+    ref: main
+
+services:
+  my-frontend:
+    enabled: true
+    kind: frontend
+    source:
+      key: my_frontend
+      context: .
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+ingress:
+  - name: my-frontend
+    hosts:
+      - name: my-frontend.example.com
+    upstream:
+      type: static
+      service: my-frontend
+      spa_fallback: true
+```
+
+## Add A New Isolated Backend
+
+Add:
+
+1. a source entry
+2. a backend service with `deploy.mode: isolated`
+3. env files
+4. ingress
+
+Example:
+
+```yaml
+services:
+  my-api:
+    enabled: true
+    kind: backend
+    source:
+      key: my_api
+      context: .
+    deploy:
+      mode: isolated
+    runtime:
+      port: 9100
+      start: npm start
+    env:
+      files:
+        nonsecret: env/services/my-api.env
+        secret: env/services-secrets/my-api.env
+      required:
+        - API_KEY
+```
+
+## Add A New Shared-Node Backend
+
+Add the service and point it to an existing group, or create a new group first.
+
+Example:
+
+```yaml
+groups:
+  low-node:
+    mode: shared-node
+    runtime: node20
+    process_manager: pm2
+    resources:
+      cpus: "0.50"
+      memory: 512m
+
+services:
+  my-small-api:
+    enabled: true
+    kind: backend
+    source:
+      key: my_small_api
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4310
+      start: npm start
+```
+
+## Move A Service Between Modes
+
+This is intentionally config-only.
+
+### Shared-Node To Isolated
+
+Change:
+
+```yaml
+deploy:
+  mode: isolated
+```
+
+Then remove the `group` field and keep the runtime port.
+
+### Isolated To Shared-Node
+
+Change:
+
+```yaml
+deploy:
+  mode: shared-node
+  group: low-node
+```
+
+Make sure the port does not conflict with another service in that group.
+
+### Isolated Frontend To Edge-Static
+
+Change:
+
+```yaml
+deploy:
+  mode: edge-static
+```
+
+For `subsnepal-web`, do not make this move unless you explicitly want to stop treating it as isolated.
+
+## Disable A Service
+
+Set:
+
+```yaml
+enabled: false
+```
+
+Then validate and publish a new release.
+
+## Remove A Service
+
+1. set `enabled: false`
+2. publish and apply one release to prove removal is safe
+3. remove the `services` entry
+4. remove related `ingress`
+5. remove env files if no longer needed
+6. remove the `sources` entry only if nothing else uses it
+
+## Host Rules
+
+The system supports:
+
+- one service with one host
+- one service with many hosts
+- separate frontend and backend hosts
+- extra routed paths like `/api`, `/media`, `/ws`, `/events`
+
+Do not normalize or auto-correct hostnames such as `api.muncipal.brijeshdev.space`. Use the exact value that is intended.
+
+## Required Validation After Changes
+
+Always run:
+
+```bash
+npm run validate
+```
+
+Then run the preview flow that matches the changed service mode.
+
+## Current Preview Mapping
+
+- `edge-static` preview: `8088`
+- `isolated` preview: `8089`
+- `shared-node` preview: `8090`
+- integrated release runtime: `8091`
