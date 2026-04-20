@@ -10,9 +10,9 @@ It covers:
 - preview flows
 - service build flows
 - local release publish/apply/rollback
-- service lifecycle changes
-
-It does not cover TLS cutover yet. That is still deferred.
+- production TLS release publish and deploy
+- SSL certificate issuance and renewal
+- service and domain lifecycle changes
 
 ## Source Of Truth
 
@@ -90,7 +90,7 @@ npm run preview:shared-node:down
 
 Preview port: `8090`
 
-### Local Release Flow
+### Local Release Flow (HTTP, for local testing)
 
 ```bash
 npm run release:publish -- --release my-release --port 8091
@@ -99,6 +99,23 @@ npm run release:rollback -- --release previous-release
 ```
 
 Local integrated runtime port: `8091`
+
+### Production Release Flow (TLS, for server deploy)
+
+```bash
+npm run release:publish:prod -- --release prod-YYYYMMDD-01
+./scripts/server/push-release.sh prod-YYYYMMDD-01 ubuntu@SERVER_IP
+```
+
+### SSL Certificate Management
+
+```bash
+npm run ssl:generate-domains         # sync domains.conf from stack.yaml
+npm run ssl:certbot:grouped          # issue/renew one cert per root domain (recommended)
+npm run ssl:certbot:dry              # dry run — simulate without issuing
+sudo bash ssl-setup/certbot-run.sh --domain subsnepal.com   # single domain only
+npm run ssl:certbot:force-all        # force re-issue all certs
+```
 
 ## Recommended Workflow
 
@@ -150,6 +167,8 @@ curl -i -H 'Host: brijeshdev.space' http://127.0.0.1:8091/
 curl -i -H 'Host: api-cors-proxy.brijeshdev.space' http://127.0.0.1:8091/
 curl -i -H 'Host: subsnepal.brijeshdev.space' http://127.0.0.1:8091/api/
 curl -i -H 'Host: admin.municipa.brijeshdev.space' http://127.0.0.1:8091/media/
+curl -i -H 'Host: subsnepal.com' http://127.0.0.1:8091/
+curl -i -H 'Host: api.subsnepal.com' http://127.0.0.1:8091/
 ```
 
 ### 7. Roll Back If Needed
@@ -158,17 +177,31 @@ curl -i -H 'Host: admin.municipa.brijeshdev.space' http://127.0.0.1:8091/media/
 npm run release:rollback -- --release 20260418-00
 ```
 
+### 8. Publish A Production TLS Release
+
+```bash
+npm run release:publish:prod -- --release prod-20260418-01
+# verify
+grep 'listen 443' generated/runtime-state/releases/prod-20260418-01/nginx.conf
+grep 'ssl_certificate' generated/runtime-state/releases/prod-20260418-01/nginx.conf
+# push to server
+./scripts/server/push-release.sh prod-20260418-01 ubuntu@SERVER_IP
+```
+
 ## Add Or Change Services
 
 Use [`SERVICE_MANAGEMENT.md`](./SERVICE_MANAGEMENT.md) for the full flow.
 
 Short version:
 
-1. edit `config/stack.yaml`
-2. add or update env files
-3. run `npm run validate`
-4. run the relevant preview flow
-5. publish and apply a local release
+1. edit `config/stack.yaml` — add source, service, ingress
+2. if new root domain: add it under `tls.root_domains` with a `cert_name`
+3. add or update env files
+4. run `npm run validate`
+5. run the relevant preview flow
+6. publish and apply a local release
+7. on server: `sudo bash ssl-setup/certbot-run.sh --grouped` (for new domains)
+8. publish and push a production TLS release
 
 ## Media Storage
 
@@ -201,11 +234,15 @@ generated/runtime-state/
         └── shared/
 ```
 
-## Important Limits Right Now
+## Production vs Local Release
 
-- no TLS in the new release runtime yet
-- no production cutover yet
-- local release runtime currently uses `generated/runtime-state`
-- production target paths in `stack.yaml` still represent the intended final deployment model
+| | Local | Production |
+|---|---|---|
+| Command | `release:publish` | `release:publish:prod` |
+| nginx | HTTP only | HTTP→HTTPS redirect + TLS server blocks |
+| Ports | `8091:80` | `80:80` + `443:443` |
+| Cert mounts | none | `/etc/letsencrypt:ro` + `/var/www/certbot:ro` |
+| Deploy | `release:apply` | `push-release.sh` → `deploy-on-server.sh` |
 
-See [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) for the current boundary.
+See [`PROD_RUNBOOK.md`](./PROD_RUNBOOK.md) for the full end-to-end production guide.
+See [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) for current status and deferred items.

@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "ssl:generate-domains": "node scripts/ssl/generate-domains-conf.mjs",
+    "ssl:generate-domains:dry": "node scripts/ssl/generate-domains-conf.mjs --dry-run",
+    "ssl:certbot": "sudo bash ssl-setup/certbot-run.sh",
+    "ssl:certbot:grouped": "sudo bash ssl-setup/certbot-run.sh --grouped",
+    "ssl:certbot:renew": "sudo bash ssl-setup/certbot-run.sh --renew",
+    "ssl:certbot:force-all": "sudo bash ssl-setup/certbot-run.sh --force-all",
+    "ssl:certbot:dry": "sudo bash ssl-setup/certbot-run.sh --dry-run",
     "validate": "node scripts/validate/index.mjs",
     "validate:remote": "node scripts/validate/index.mjs --remote",
     "render": "node scripts/render/index.mjs",
@@ -22,6 +29,7 @@
     "preview:shared-node:up": "node scripts/preview/shared-node.mjs up",
     "preview:shared-node:down": "node scripts/preview/shared-node.mjs down",
     "release:publish": "node scripts/deploy/publish.mjs",
+    "release:publish:prod": "node scripts/deploy/publish.mjs --tls",
     "release:apply": "node scripts/deploy/apply.mjs",
     "release:rollback": "node scripts/rollback/index.mjs"
   },

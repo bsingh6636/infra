@@ -1,7 +1,10 @@
 import { chmod, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-import { defaultRuntimeStateRoot, ensureRuntimeStateDirectories, getRuntimeStateLayout, readCurrentReleasePath, updateCurrentReleaseSymlink, resolveStateRoot } from "../lib/runtime-state.mjs";
+import { loadStack } from "../lib/load-stack.mjs";
+import { normalizeStack } from "../lib/normalize-stack.mjs";
+import { defaultStackPath } from "../lib/paths.mjs";
+import { defaultRuntimeStateRoot, ensureRuntimeStateDirectories, getRuntimeStateLayout, mapStorageSourceToStateRoot, readCurrentReleasePath, updateCurrentReleaseSymlink, resolveStateRoot } from "../lib/runtime-state.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
 function parseArgs(argv) {
@@ -9,6 +12,7 @@ function parseArgs(argv) {
     releaseId: null,
     stateRoot: defaultRuntimeStateRoot,
     projectName: "infra-local-release",
+    stackPath: defaultStackPath,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -22,6 +26,18 @@ function parseArgs(argv) {
       }
 
       options.releaseId = nextValue;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--stack") {
+      const nextValue = argv[index + 1];
+
+      if (!nextValue) {
+        throw new Error("--stack requires a file path");
+      }
+
+      options.stackPath = nextValue;
       index += 1;
       continue;
     }
@@ -71,15 +87,19 @@ async function getLatestReleaseId(layout) {
   return sorted[0] ?? null;
 }
 
-async function ensureMediaDirectories(layout) {
-  const municipalMediaRoot = path.join(layout.dataRoot, "municipal", "media");
+async function ensureStorageDirectories(stack, layout) {
+  for (const service of stack.services) {
+    if (!service.storage) continue;
 
-  await mkdir(municipalMediaRoot, { recursive: true });
-  await chmod(municipalMediaRoot, 0o775);
+    for (const mount of service.storage) {
+      if (mount.type !== "bind") continue;
 
-  return {
-    municipalMediaRoot,
-  };
+      const localPath = mapStorageSourceToStateRoot(stack, layout.stateRoot, mount.source);
+
+      await mkdir(localPath, { recursive: true });
+      await chmod(localPath, 0o775);
+    }
+  }
 }
 
 async function main() {
@@ -101,7 +121,8 @@ async function main() {
     throw new Error(`Release ${releaseId} does not exist at ${releaseDirectory}`);
   }
 
-  await ensureMediaDirectories(layout);
+  const stack = normalizeStack((await loadStack(options.stackPath)).raw);
+  await ensureStorageDirectories(stack, layout);
 
   await runCommand("docker", [
     "compose",
@@ -111,8 +132,8 @@ async function main() {
     composePath,
     "up",
     "-d",
-    "--build",
     "--remove-orphans",
+    "--pull", "never",
   ]);
 
   await updateCurrentReleaseSymlink(layout, releaseDirectory);

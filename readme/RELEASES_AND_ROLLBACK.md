@@ -64,9 +64,11 @@ npm run release:apply -- --release my-release
 
 What it does:
 
-- ensures the local data directories exist
-- runs `docker compose up -d --build --remove-orphans` from that release
+- ensures the local data directories exist (from `stack.yaml` storage entries)
+- runs `docker compose up -d --remove-orphans --pull never` from that release
 - updates `generated/runtime-state/current`
+
+> `--pull never` is intentional — apply never pulls or rebuilds images. The release snapshot is treated as immutable.
 
 ## Rollback
 
@@ -140,11 +142,32 @@ npm run release:rollback -- --release phase6-r1
 - local data in `generated/runtime-state/data/` should survive release switches
 - edge, shared-node, and isolated services should all be rebuilt from the selected release snapshot
 
-## What Is Not Done Yet
+## Production Release
 
-- no retention/prune automation yet
-- no remote publish target yet
-- no production `/opt/brijesh-infra` release runtime yet
-- no TLS yet
+A production release bakes TLS nginx config and wires the compose file for port 443 + cert mounts.
 
-This release system is intentionally local-safe first.
+```bash
+# Publish a TLS-enabled release snapshot
+npm run release:publish:prod -- --release prod-YYYYMMDD-01
+
+# Push to server and deploy
+./scripts/server/push-release.sh prod-YYYYMMDD-01 ubuntu@SERVER_IP
+```
+
+The server-side deploy script (`deploy-on-server.sh`) does:
+- expands the tarball under `/opt/brijesh-infra/releases/<id>/`
+- stops the previous stack
+- starts the new stack with `--pull never`
+- flips `/opt/brijesh-infra/current` symlink
+
+For rollback on the server:
+```bash
+sudo bash /opt/brijesh-infra/scripts/server/rollback-on-server.sh prod-YYYYMMDD-00
+```
+
+## What Is Still Deferred
+
+- release retention/prune automation
+- CI/CD integration
+
+See [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) for full status.

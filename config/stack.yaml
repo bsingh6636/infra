@@ -19,6 +19,11 @@ tls:
     brijeshdev.space:
       mode: wildcard_dns
       dns_provider: cloudflare
+      cert_name: cors-proxy.brijeshdev.space
+    subsnepal.com:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: subsnepal.com
 
 env:
   global_nonsecret: env/global.env
@@ -238,6 +243,8 @@ ingress:
   - name: subsnepal-web
     hosts:
       - name: subsnepal.brijeshdev.space
+      - name: subsnepal.com
+      - name: www.subsnepal.com
     upstream:
       type: proxy
       service: subsnepal-web
@@ -255,6 +262,7 @@ ingress:
   - name: subsnepal-api
     hosts:
       - name: api-subsnepal.brijeshdev.space
+      - name: api.subsnepal.com
     upstream:
       type: proxy
       service: subsnepal-api

@@ -132,6 +132,7 @@ export function renderReleaseCompose(stack, options = {}) {
   const {
     stateRoot,
     port = 8091,
+    tls = false,
   } = options;
   const sharedNodeServices = collectSharedNodeServices(stack);
   const isolatedServices = collectIsolatedServices(stack);
@@ -143,15 +144,22 @@ export function renderReleaseCompose(stack, options = {}) {
     groupedServices.set(service.deploy.group, services);
   }
 
+  const edgePorts = tls ? [`${port}:80`, "443:443"] : [`${port}:80`];
+  const edgeVolumes = [
+    "./nginx.conf:/etc/nginx/conf.d/default.conf:ro",
+    "./edge-static:/srv/edge-static:ro",
+    ...(tls ? [
+      "/etc/letsencrypt:/etc/letsencrypt:ro",
+      "/var/www/certbot:/var/www/certbot:ro",
+    ] : []),
+  ];
+
   const services = {
     edge: {
       image: "nginx:1.27-alpine",
       restart: "unless-stopped",
-      ports: [`${port}:80`],
-      volumes: [
-        "./nginx.conf:/etc/nginx/conf.d/default.conf:ro",
-        "./edge-static:/srv/edge-static:ro",
-      ],
+      ports: edgePorts,
+      volumes: edgeVolumes,
     },
   };
 

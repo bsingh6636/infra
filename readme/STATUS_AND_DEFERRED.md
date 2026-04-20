@@ -39,21 +39,31 @@
 - local publish/apply/rollback
 - local municipal media bind mount
 
+### Phase 7 (Production Readiness)
+
+- `--build` immutability fix in `apply.mjs` and `rollback/index.mjs`
+- stack-driven storage directory creation in `apply.mjs` (replaces hardcoded `municipal/media`)
+- TLS rendering in `release-nginx.mjs` — per-host cert resolution from `tls.root_domains`
+- multi-root-domain support (`brijeshdev.space` + `subsnepal.com` + any future domains)
+- `--cert-name` removed — cert path fully automatic from `stack.yaml`
+- production deploy scripts: `push-release.sh`, `deploy-on-server.sh`, `rollback-on-server.sh`
+- SSL automation: `certbot-run.sh` with per-domain isolation, expiry-aware skip, `--grouped` mode
+- `generate-domains-conf.mjs` — auto-syncs `domains.conf` from `stack.yaml`
+- `setup-ssl.sh` renewal hooks updated to use new release system (`/opt/brijesh-infra/current/`)
+- `PROD_RUNBOOK.md` — full local test + production deployment + verification guide
+
 ## Deferred
 
-- TLS rendering and certificate flow in the new release runtime
-- final production cutover
-- production `/opt/brijesh-infra` runtime activation
 - real non-stub end-to-end proof across every service
 - release pruning automation
-- remote/server publish flow
+- CI/CD integration
 
 ## Legacy Files
 
 The old manual `docs/*.md` files were removed. The items below still exist but should not be treated as the new source of truth:
 
 - `docs/`
-- `ssl-setup/`
+- `ssl-setup/setup-ssl.sh` — replaced by `ssl-setup/certbot-run.sh`
 - old manual compose/nginx/deploy material
 
 For the new workflow, use:
@@ -64,10 +74,7 @@ For the new workflow, use:
 
 ## Recommended Next Step
 
-Use the final validation phase before any production cutover:
-
-- real builds instead of stub builds
-- full integrated local release test
-- final media permission and backup review
-- TLS/certificate integration review
-- production cutover checklist
+- Real builds instead of stub builds
+- Full integrated local release test (`PROD_RUNBOOK.md` Part 1)
+- SSL cert provisioning on server (`certbot-run.sh --grouped`)
+- First production deploy (`push-release.sh`)

@@ -17,6 +17,7 @@ function parseArgs(argv) {
     releaseId: createReleaseId(),
     stateRoot: defaultRuntimeStateRoot,
     port: 8091,
+    tls: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -67,6 +68,11 @@ function parseArgs(argv) {
 
       options.port = nextValue;
       index += 1;
+      continue;
+    }
+
+    if (arg === "--tls") {
+      options.tls = true;
       continue;
     }
 
@@ -286,13 +292,14 @@ async function main() {
     renderReleaseCompose(stack, {
       stateRoot: layout.stateRoot,
       port: options.port,
+      tls: options.tls,
     }),
     "utf8",
   );
 
   await writeFile(
     path.join(releaseDirectory, "nginx.conf"),
-    renderReleaseNginx(stack),
+    renderReleaseNginx(stack, { tls: options.tls }),
     "utf8",
   );
 

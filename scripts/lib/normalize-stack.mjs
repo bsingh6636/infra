@@ -34,6 +34,7 @@ function normalizeRoute(route) {
   return {
     path: objectRoute.path ?? "",
     service: objectRoute.service ?? "",
+    url: objectRoute.url ?? "",
     protocol: objectRoute.protocol ?? "http",
   };
 }
@@ -74,6 +75,7 @@ function normalizeIngress(entry) {
     upstream: {
       type: objectEntry.upstream?.type ?? "",
       service: objectEntry.upstream?.service ?? "",
+      url: objectEntry.upstream?.url ?? "",
       spa_fallback: objectEntry.upstream?.spa_fallback === true,
     },
     routes: asArray(objectEntry.routes).map(normalizeRoute),

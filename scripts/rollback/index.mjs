@@ -94,8 +94,8 @@ async function main() {
     composePath,
     "up",
     "-d",
-    "--build",
     "--remove-orphans",
+    "--pull", "never",
   ]);
 
   await updateCurrentReleaseSymlink(layout, releaseDirectory);

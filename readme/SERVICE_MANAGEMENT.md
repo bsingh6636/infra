@@ -189,14 +189,41 @@ Then validate and publish a new release.
 5. remove env files if no longer needed
 6. remove the `sources` entry only if nothing else uses it
 
+## Add A New Domain Or Subdomain
+
+For a **new subdomain** under an existing root domain (e.g. `new.brijeshdev.space`):
+
+1. Add the host to the relevant `ingress` entry in `stack.yaml`
+2. Run `npm run ssl:generate-domains` to sync `domains.conf`
+3. On server: `sudo bash ssl-setup/certbot-run.sh --grouped` (skips certs with > 120 days left)
+4. Publish and push a new release
+
+For a **new root domain** (e.g. `newsite.io`):
+
+1. Add it under `tls.root_domains` in `stack.yaml`:
+```yaml
+tls:
+  root_domains:
+    newsite.io:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: newsite.io
+```
+2. Add ingress entries with the new hosts
+3. Run `npm run ssl:generate-domains`
+4. On server: `sudo bash ssl-setup/certbot-run.sh --grouped`
+5. Publish and push a new release — nginx cert paths are resolved automatically
+
 ## Host Rules
 
 The system supports:
 
 - one service with one host
-- one service with many hosts
-- separate frontend and backend hosts
+- one service with many hosts (across multiple root domains)
+- separate frontend and backend ingress entries
 - extra routed paths like `/api`, `/media`, `/ws`, `/events`
+
+**Multi-root-domain entries:** If one ingress entry lists hosts from different root domains (e.g. `subsnepal.brijeshdev.space` and `subsnepal.com`), the nginx renderer automatically splits them into separate TLS server blocks — one per cert. Each block points to the same upstream.
 
 Do not normalize or auto-correct hostnames such as `api.muncipal.brijeshdev.space`. Use the exact value that is intended.
 
