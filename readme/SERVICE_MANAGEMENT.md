@@ -189,6 +189,36 @@ Then validate and publish a new release.
 5. remove env files if no longer needed
 6. remove the `sources` entry only if nothing else uses it
 
+## Manage Service Secrets with Infisical
+
+When adding a new service that requires secrets (e.g., API keys, database credentials), follow these steps to keep them synced:
+
+1. **Define the secret file in `stack.yaml`**:
+   ```yaml
+   services:
+     my-api:
+       env:
+         files:
+           secret: env/services-secrets/my-api.env
+   ```
+
+2. **Add secrets to Infisical**:
+   - Log in to the Infisical dashboard.
+   - Add the secrets at the root `/` path for the environment you are using.
+   - Keep the local target file in `stack.yaml` aligned with the service name you want to write.
+
+3. **Pull secrets locally**:
+   ```bash
+   npm run infisical:pull:development -- --only=my-api
+   ```
+   This will create `env/services-secrets/my-api.env` with the exported values from the selected Infisical path.
+
+4. **Verify with validation**:
+   ```bash
+   npm run validate
+   ```
+   The validator will ensure the secret file exists and contains any keys marked as `required` in `stack.yaml`.
+
 ## Add A New Domain Or Subdomain
 
 For a **new subdomain** under an existing root domain (e.g. `new.brijeshdev.space`):

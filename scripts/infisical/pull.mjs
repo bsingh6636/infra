@@ -3,18 +3,18 @@
 // Pull secrets from Infisical into local env/ files.
 //
 // Usage:
-//   node scripts/infisical/pull.mjs --env=dev
-//   node scripts/infisical/pull.mjs --env=prod --force
-//   node scripts/infisical/pull.mjs --env=prod --only=global
-//   node scripts/infisical/pull.mjs --env=prod --only=subsnepal-api
+//   node scripts/infisical/pull.mjs --env=development
+//   node scripts/infisical/pull.mjs --env=production --force
+//   node scripts/infisical/pull.mjs --env=production --only=global
+//   node scripts/infisical/pull.mjs --env=production --only=subsnepal-api
 //
 // Flags:
-//   --env=<slug>      Infisical environment slug (required). e.g. dev, staging, prod, oracle
+//   --env=<slug>      Infisical environment slug (required). e.g. development, staging, production
 //   --force           Overwrite existing files without asking
 //   --only=<name>     Only pull "global" or a specific service name
 //   --dry-run         Print what would be written, don't touch files
 //   --path-prefix=<p> Root path inside Infisical (default: /)
-//                     Services live under <prefix>/services/<service-name>
+//                     This repo currently pulls all secrets from that single path
 //
 // Infisical session:
 //   This script does NOT log you in. Run first:
@@ -31,6 +31,29 @@ import { parse as parseYaml } from "yaml";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const STACK_YAML = resolve(REPO_ROOT, "config/stack.yaml");
 const INFISICAL_BIN = resolve(REPO_ROOT, "node_modules/@infisical/cli/bin/infisical");
+const ENV_ALIASES = {
+  dev: "development",
+  development: "development",
+  stage: "staging",
+  staging: "staging",
+  prod: "production",
+  production: "production",
+};
+
+function normalizeEnvironmentName(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return ENV_ALIASES[normalized] ?? normalized;
+}
+
+function normalizeInfisicalPath(value) {
+  const trimmed = String(value ?? "/").trim();
+
+  if (!trimmed || trimmed === "/") {
+    return "/";
+  }
+
+  return `/${trimmed.replace(/^\/+/, "").replace(/\/+$/, "")}`;
+}
 
 function parseArgs(argv) {
   const args = { env: "", only: "", pathPrefix: "/", force: false, dryRun: false };
@@ -42,7 +65,13 @@ function parseArgs(argv) {
     else if (raw.startsWith("--path-prefix=")) args.pathPrefix = raw.slice("--path-prefix=".length);
     else throw new Error(`Unknown arg: ${raw}`);
   }
-  if (!args.env) throw new Error("--env=<slug> is required (e.g. --env=dev, --env=prod)");
+  args.env = normalizeEnvironmentName(args.env);
+  args.pathPrefix = normalizeInfisicalPath(args.pathPrefix);
+  if (!args.env) {
+    throw new Error(
+      "--env=<slug> is required (e.g. --env=development, --env=staging, --env=production)",
+    );
+  }
   return args;
 }
 
@@ -65,7 +94,6 @@ function loadStack() {
 
 function collectServiceTargets(stack, only) {
   const services = Object.entries(stack.services || {});
-  const dir = stack.env?.service_secret_dir ?? "env/services-secrets";
   const targets = [];
   for (const [name, svc] of services) {
     if (svc?.enabled === false) continue;
@@ -76,7 +104,6 @@ function collectServiceTargets(stack, only) {
     targets.push({
       name,
       localPath: resolve(REPO_ROOT, secretFile),
-      infisicalPath: `/services/${name}`,
     });
   }
   return targets;
@@ -101,8 +128,11 @@ function writeIfAllowed({ localPath, contents, force, dryRun }) {
 async function main() {
   const args = parseArgs(process.argv);
   const stack = loadStack();
+  const exportCache = new Map();
 
-  console.log(`[infisical-pull] env=${args.env} force=${args.force} dryRun=${args.dryRun}`);
+  console.log(
+    `[infisical-pull] env=${args.env} path=${args.pathPrefix} force=${args.force} dryRun=${args.dryRun}`,
+  );
 
   const plan = [];
 
@@ -121,8 +151,7 @@ async function main() {
     plan.push({
       label: target.name,
       localPath: target.localPath,
-      infisicalPath:
-        args.pathPrefix === "/" ? target.infisicalPath : `${args.pathPrefix}${target.infisicalPath}`,
+      infisicalPath: args.pathPrefix,
     });
   }
 
@@ -137,7 +166,14 @@ async function main() {
     console.log(`\n→ ${entry.label}  (infisical path: ${entry.infisicalPath})`);
     let contents;
     try {
-      contents = runInfisicalExport({ env: args.env, path: entry.infisicalPath });
+      const cacheKey = `${args.env}:${entry.infisicalPath}`;
+      if (!exportCache.has(cacheKey)) {
+        exportCache.set(
+          cacheKey,
+          runInfisicalExport({ env: args.env, path: entry.infisicalPath }),
+        );
+      }
+      contents = exportCache.get(cacheKey);
     } catch (err) {
       console.error(`[error]   ${entry.label}: ${err.message}`);
       process.exitCode = 1;

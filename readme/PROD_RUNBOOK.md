@@ -10,6 +10,7 @@ This is the end-to-end guide to go from a clean repo to a live production stack 
 |---|---|
 | Docker Engine installed locally and on server | `docker info` |
 | Node 20+ locally | `node -v` |
+| Infisical CLI installed locally | `infisical --version` |
 | SSH key access to production server | `ssh user@server-ip echo ok` |
 | Cloudflare API token in `.env` as `CLOUDFLARE_API_TOKEN` | `grep CLOUDFLARE .env` |
 | All env files present (`env/global.env`, `env/global.secrets.env`, service envs) | `npm run validate` |
@@ -20,6 +21,18 @@ This is the end-to-end guide to go from a clean repo to a live production stack 
 ## Part 1 — Local Testing (Before Touching the Server)
 
 Run every step below in order. Do not skip any. Port 8091 is used as the local integrated runtime.
+
+### Step 0 — Pull secrets from Infisical
+
+Ensure you have the latest secrets for the environment you are deploying (usually `production`).
+
+```bash
+# Log in if needed
+npm run infisical:login
+
+# Pull production secrets into local env/ files
+npm run infisical:pull:production -- --force
+```
 
 ### Step 1 — Validate config
 

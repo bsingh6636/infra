@@ -14,6 +14,24 @@ This folder is the current documentation set for the new infra workflow.
 - [`MEDIA_STORAGE.md`](./MEDIA_STORAGE.md) — safe handling of `municipal-api` media storage
 - [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) — current status, completed phases, deferred work
 
+## Secrets Management
+
+We use **Infisical** to manage and sync `.secrets.env` files across environments.
+
+| Command | What it does |
+|---|---|
+| `npm run infisical:login` | Log in to the Infisical CLI |
+| `npm run infisical:init` | Link the repository to an Infisical project |
+| `npm run infisical:pull:development` | Pull development secrets locally |
+| `npm run infisical:pull:staging` | Pull staging secrets locally |
+| `npm run infisical:pull:production` | Pull production secrets locally |
+
+Secrets are currently stored at the Infisical root path `/`.
+The pull script exports from that path and writes the result into the local `.secrets.env` files declared in `stack.yaml`.
+Missing local directories are created automatically before writing.
+
+See [`MASTER_GUIDE.md`](./MASTER_GUIDE.md) for full Infisical details.
+
 ## SSL
 
 All cert operations are driven from `config/stack.yaml` as single source of truth.

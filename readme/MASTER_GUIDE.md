@@ -42,6 +42,50 @@ Applied in this order:
 3. `env/services/<service>.env`
 4. `env/services-secrets/<service>.env`
 
+## Secrets Management (Infisical)
+
+We use [Infisical](https://infisical.com/) to securely manage and sync secrets across development, staging, and production environments. Secrets are pulled from Infisical and saved into the `.secrets.env` files listed above.
+
+### Setup
+
+Before pulling secrets for the first time:
+
+```bash
+npm run infisical:login               # log in to your account
+npm run infisical:init                # link this repo to the Infisical project
+```
+
+### Pulling Secrets
+
+Pull all secrets for a specific environment:
+
+```bash
+npm run infisical:pull:development    # pulls into local env/ files
+npm run infisical:pull:staging        # pulls into local env/ files
+npm run infisical:pull:production     # pulls into local env/ files
+```
+
+Advanced pull options:
+
+```bash
+# Force overwrite existing local secret files
+npm run infisical:pull -- --env=production --force
+
+# Pull only for a specific service
+npm run infisical:pull -- --env=production --only=subsnepal-api
+
+# Dry run (see what would change)
+npm run infisical:pull -- --env=production --dry-run
+```
+
+### Infisical Structure
+
+- Secrets are currently stored at the root `/` path in Infisical.
+- The pull script exports from a single Infisical path and writes that content into the local secret files declared in `stack.yaml`.
+- Local directories are created automatically if they do not exist yet.
+
+The `npm run validate` command will check if all required secret files exist locally, but it does NOT check if they are up-to-date with Infisical. Always run a pull before a major release.
+
 ## Main Commands
 
 ### Validate
