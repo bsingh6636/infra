@@ -28,6 +28,7 @@
     "preview:shared-node:render": "node scripts/preview/shared-node.mjs render",
     "preview:shared-node:up": "node scripts/preview/shared-node.mjs up",
     "preview:shared-node:down": "node scripts/preview/shared-node.mjs down",
+    "server:bootstrap": "bash -c 'scp scripts/server/bootstrap-server.sh $SERVER:/tmp/bootstrap-server.sh && ssh $SERVER sudo bash /tmp/bootstrap-server.sh'",
     "release:publish": "node scripts/deploy/publish.mjs",
     "release:publish:prod": "node scripts/deploy/publish.mjs --tls",
     "release:apply": "node scripts/deploy/apply.mjs",
