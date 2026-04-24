@@ -16,10 +16,10 @@ build:
 
 tls:
   root_domains:
-    brijeshdev.space:
+    brijeshkushwaha.com.np:
       mode: wildcard_dns
       dns_provider: cloudflare
-      cert_name: cors-proxy.brijeshdev.space
+      cert_name: cors-proxy.brijeshkushwaha.com.np
     subsnepal.com:
       mode: wildcard_dns
       dns_provider: cloudflare
@@ -198,8 +198,8 @@ services:
 ingress:
   - name: portfolio
     hosts:
-      - name: brijeshdev.space
-      - name: portfolio.brijeshdev.space
+      - name: brijeshkushwaha.com.np
+      - name: portfolio.brijeshkushwaha.com.np
     upstream:
       type: static
       service: portfolio-web
@@ -207,7 +207,7 @@ ingress:
 
   - name: ranju
     hosts:
-      - name: ranju.brijeshdev.space
+      - name: ranju.brijeshkushwaha.com.np
     upstream:
       type: static
       service: ranju-web
@@ -215,8 +215,8 @@ ingress:
 
   - name: cors-web
     hosts:
-      - name: cors-proxy.brijeshdev.space
-      - name: cors-proxy2.brijeshdev.space
+      - name: cors-proxy.brijeshkushwaha.com.np
+      - name: cors-proxy2.brijeshkushwaha.com.np
     upstream:
       type: static
       service: cors-web
@@ -228,21 +228,21 @@ ingress:
 
   - name: cors-api
     hosts:
-      - name: api-cors-proxy.brijeshdev.space
+      - name: api-cors-proxy.brijeshkushwaha.com.np
     upstream:
       type: proxy
       service: cors-api
 
   - name: getdata
     hosts:
-      - name: getdata-cors-proxy.brijeshdev.space
+      - name: getdata-cors-proxy.brijeshkushwaha.com.np
     upstream:
       type: proxy
       service: getdata
 
   - name: subsnepal-web
     hosts:
-      - name: subsnepal.brijeshdev.space
+      - name: subsnepal.brijeshkushwaha.com.np
       - name: subsnepal.com
       - name: www.subsnepal.com
     upstream:
@@ -261,7 +261,7 @@ ingress:
 
   - name: subsnepal-api
     hosts:
-      - name: api-subsnepal.brijeshdev.space
+      - name: api-subsnepal.brijeshkushwaha.com.np
       - name: api.subsnepal.com
     upstream:
       type: proxy
@@ -269,7 +269,7 @@ ingress:
 
   - name: municipal-admin
     hosts:
-      - name: admin.municipa.brijeshdev.space
+      - name: admin.municipa.brijeshkushwaha.com.np
     upstream:
       type: static
       service: municipal-admin
@@ -284,7 +284,7 @@ ingress:
 
   - name: municipal-api
     hosts:
-      - name: api.muncipal.brijeshdev.space
+      - name: api.muncipal.brijeshkushwaha.com.np
         acknowledge_nonstandard: true
     upstream:
       type: proxy

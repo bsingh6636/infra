@@ -117,10 +117,10 @@ readlink generated/runtime-state/current
 ### 4. Check Routes
 
 ```bash
-curl -i -H 'Host: brijeshdev.space' http://127.0.0.1:8091/
-curl -i -H 'Host: api-cors-proxy.brijeshdev.space' http://127.0.0.1:8091/
-curl -i -H 'Host: subsnepal.brijeshdev.space' http://127.0.0.1:8091/api/
-curl -i -H 'Host: admin.municipa.brijeshdev.space' http://127.0.0.1:8091/media/
+curl -i -H 'Host: brijeshkushwaha.com.np' http://127.0.0.1:8091/
+curl -i -H 'Host: api-cors-proxy.brijeshkushwaha.com.np' http://127.0.0.1:8091/
+curl -i -H 'Host: subsnepal.brijeshkushwaha.com.np' http://127.0.0.1:8091/api/
+curl -i -H 'Host: admin.municipa.brijeshkushwaha.com.np' http://127.0.0.1:8091/media/
 ```
 
 ### 5. Publish Second Release

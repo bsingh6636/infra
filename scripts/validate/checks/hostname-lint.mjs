@@ -6,7 +6,7 @@ function buildResult(name) {
   };
 }
 
-function getRootDomain(hostname) {
+function getFallbackRootDomain(hostname) {
   const labels = hostname.split(".");
 
   if (labels.length < 2) {
@@ -16,12 +16,27 @@ function getRootDomain(hostname) {
   return labels.slice(-2).join(".");
 }
 
-function getDomainStem(hostname) {
-  const labels = hostname.split(".");
+function getConfiguredRootDomain(hostname, configuredRootDomains) {
+  const matchingRoot = configuredRootDomains
+    .filter((rootDomain) => hostname === rootDomain || hostname.endsWith(`.${rootDomain}`))
+    .sort((left, right) => right.length - left.length)[0];
 
-  if (labels.length < 3) {
+  return matchingRoot ?? getFallbackRootDomain(hostname);
+}
+
+function getDomainStem(hostname, rootDomain) {
+  if (hostname === rootDomain) {
     return "";
   }
+
+  const suffix = `.${rootDomain}`;
+
+  if (hostname.endsWith(suffix)) {
+    const prefixLabels = hostname.slice(0, -suffix.length).split(".");
+    return prefixLabels[prefixLabels.length - 1] ?? "";
+  }
+
+  const labels = hostname.split(".");
 
   return labels[labels.length - 3];
 }
@@ -64,6 +79,7 @@ const hostPattern =
 export async function runHostnameLintCheck({ stack }) {
   const result = buildResult("hostname-lint");
   const hosts = [];
+  const configuredRootDomains = Object.keys(stack.tls.root_domains);
 
   for (const entry of stack.ingress) {
     for (const host of entry.hosts) {
@@ -72,7 +88,7 @@ export async function runHostnameLintCheck({ stack }) {
         continue;
       }
 
-      const rootDomain = getRootDomain(host.name);
+      const rootDomain = getConfiguredRootDomain(host.name, configuredRootDomains);
 
       if (!stack.tls.root_domains[rootDomain]) {
         result.warnings.push(
@@ -84,7 +100,7 @@ export async function runHostnameLintCheck({ stack }) {
         ingress: entry.name,
         name: host.name,
         rootDomain,
-        stem: getDomainStem(host.name),
+        stem: getDomainStem(host.name, rootDomain),
         acknowledged: host.acknowledge_nonstandard,
       });
     }

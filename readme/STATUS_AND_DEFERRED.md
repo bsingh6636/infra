@@ -44,7 +44,7 @@
 - `--build` immutability fix in `apply.mjs` and `rollback/index.mjs`
 - stack-driven storage directory creation in `apply.mjs` (replaces hardcoded `municipal/media`)
 - TLS rendering in `release-nginx.mjs` — per-host cert resolution from `tls.root_domains`
-- multi-root-domain support (`brijeshdev.space` + `subsnepal.com` + any future domains)
+- multi-root-domain support (`brijeshkushwaha.com.np` + `subsnepal.com` + any future domains)
 - `--cert-name` removed — cert path fully automatic from `stack.yaml`
 - production deploy scripts: `push-release.sh`, `deploy-on-server.sh`, `rollback-on-server.sh`
 - SSL automation: `certbot-run.sh` with per-domain isolation, expiry-aware skip, `--grouped` mode

@@ -138,7 +138,7 @@ function resolveCertNameForHost(stack, hostname) {
 
 function renderTlsServerBlock(stack, entry) {
   // Group hosts by cert name. An ingress entry may span multiple root domains
-  // (e.g. subsnepal.brijeshdev.space + subsnepal.com). Each cert group gets
+  // (e.g. subsnepal.brijeshkushwaha.com.np + subsnepal.com). Each cert group gets
   // its own redirect block + its own SSL server block pointing to the same upstream.
   const certGroups = new Map();
 

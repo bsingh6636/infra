@@ -65,6 +65,9 @@ npm run infisical:pull:staging        # pulls into local env/ files
 npm run infisical:pull:production     # pulls into local env/ files
 ```
 
+These commands map to the actual Infisical environment slugs used by this project:
+`development` -> `dev`, `staging` -> `staging`, and `production` -> `prod`.
+
 Advanced pull options:
 
 ```bash
@@ -207,10 +210,10 @@ Use `curl` with `Host` headers against `127.0.0.1:8091`.
 Examples:
 
 ```bash
-curl -i -H 'Host: brijeshdev.space' http://127.0.0.1:8091/
-curl -i -H 'Host: api-cors-proxy.brijeshdev.space' http://127.0.0.1:8091/
-curl -i -H 'Host: subsnepal.brijeshdev.space' http://127.0.0.1:8091/api/
-curl -i -H 'Host: admin.municipa.brijeshdev.space' http://127.0.0.1:8091/media/
+curl -i -H 'Host: brijeshkushwaha.com.np' http://127.0.0.1:8091/
+curl -i -H 'Host: api-cors-proxy.brijeshkushwaha.com.np' http://127.0.0.1:8091/
+curl -i -H 'Host: subsnepal.brijeshkushwaha.com.np' http://127.0.0.1:8091/api/
+curl -i -H 'Host: admin.municipa.brijeshkushwaha.com.np' http://127.0.0.1:8091/media/
 curl -i -H 'Host: subsnepal.com' http://127.0.0.1:8091/
 curl -i -H 'Host: api.subsnepal.com' http://127.0.0.1:8091/
 ```

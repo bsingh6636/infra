@@ -6,7 +6,7 @@
 // What it does:
 //   1. Reads all hostnames from stack.yaml ingress entries
 //   2. Writes them to ssl-setup/domains.conf
-//   3. Preserves CERT_NAME, EMAIL, and CLOUDFLARE_API_TOKEN comment
+//   3. Derives CERT_NAME, preserves EMAIL, and keeps the CLOUDFLARE_API_TOKEN comment
 //   4. On --dry-run, prints the output without writing
 
 import { writeFile } from "node:fs/promises";
@@ -18,13 +18,23 @@ import { repoRoot } from "../lib/paths.mjs";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 
-const CERT_NAME = "cors-proxy.brijeshdev.space";
 const EMAIL = "bkushwaha.dev@gmail.com";
 const OUTPUT_PATH = path.join(repoRoot, "ssl-setup", "domains.conf");
+
+function getPrimaryCertName(stack) {
+  const [rootDomain, config] = Object.entries(stack.tls.root_domains)[0] ?? [];
+
+  if (!rootDomain) {
+    throw new Error("No TLS root domains found in stack.yaml.");
+  }
+
+  return config.cert_name ?? rootDomain;
+}
 
 async function main() {
   const { raw } = await loadStack();
   const stack = normalizeStack(raw);
+  const certName = getPrimaryCertName(stack);
 
   const hostnames = [];
 
@@ -47,7 +57,7 @@ async function main() {
 # To regenerate after changing stack.yaml hostnames.
 
 EMAIL="${EMAIL}"
-CERT_NAME="${CERT_NAME}" # Do not change this unless you update nginx configs too
+CERT_NAME="${certName}" # Derived from the first tls.root_domains entry in stack.yaml
 
 # Cloudflare API Token is loaded from the project root .env file (CLOUDFLARE_API_TOKEN)
 # If not found there, set it here:

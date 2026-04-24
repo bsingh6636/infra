@@ -221,7 +221,7 @@ When adding a new service that requires secrets (e.g., API keys, database creden
 
 ## Add A New Domain Or Subdomain
 
-For a **new subdomain** under an existing root domain (e.g. `new.brijeshdev.space`):
+For a **new subdomain** under an existing root domain (e.g. `new.brijeshkushwaha.com.np`):
 
 1. Add the host to the relevant `ingress` entry in `stack.yaml`
 2. Run `npm run ssl:generate-domains` to sync `domains.conf`
@@ -253,9 +253,9 @@ The system supports:
 - separate frontend and backend ingress entries
 - extra routed paths like `/api`, `/media`, `/ws`, `/events`
 
-**Multi-root-domain entries:** If one ingress entry lists hosts from different root domains (e.g. `subsnepal.brijeshdev.space` and `subsnepal.com`), the nginx renderer automatically splits them into separate TLS server blocks — one per cert. Each block points to the same upstream.
+**Multi-root-domain entries:** If one ingress entry lists hosts from different root domains (e.g. `subsnepal.brijeshkushwaha.com.np` and `subsnepal.com`), the nginx renderer automatically splits them into separate TLS server blocks — one per cert. Each block points to the same upstream.
 
-Do not normalize or auto-correct hostnames such as `api.muncipal.brijeshdev.space`. Use the exact value that is intended.
+Do not normalize or auto-correct hostnames such as `api.muncipal.brijeshkushwaha.com.np`. Use the exact value that is intended.
 
 ## Required Validation After Changes
 

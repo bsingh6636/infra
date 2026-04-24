@@ -102,7 +102,7 @@ if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 else
     # Fallback if config not found (should not happen if flow is followed)
-    DOMAINS=("cors-proxy.brijeshdev.space" "api-cors-proxy.brijeshdev.space" "getdata-cors-proxy.brijeshdev.space")
+    DOMAINS=("cors-proxy.brijeshkushwaha.com.np" "api-cors-proxy.brijeshkushwaha.com.np" "getdata-cors-proxy.brijeshkushwaha.com.np")
 fi
 
 log_info "Your domains are now running on HTTPS:"

@@ -26,6 +26,8 @@ We use **Infisical** to manage and sync `.secrets.env` files across environments
 | `npm run infisical:pull:staging` | Pull staging secrets locally |
 | `npm run infisical:pull:production` | Pull production secrets locally |
 
+The pull script accepts friendly names but calls Infisical with this project's actual slugs: `dev`, `staging`, and `prod`.
+
 Secrets are currently stored at the Infisical root path `/`.
 The pull script exports from that path and writes the result into the local `.secrets.env` files declared in `stack.yaml`.
 Missing local directories are created automatically before writing.

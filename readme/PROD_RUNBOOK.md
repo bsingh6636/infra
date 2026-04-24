@@ -64,15 +64,15 @@ npm run preview:edge-static:render
 npm run preview:edge-static:up
 
 # Test: static frontends
-curl -si -H 'Host: brijeshdev.space'            http://127.0.0.1:8088/ | head -1
-curl -si -H 'Host: portfolio.brijeshdev.space'  http://127.0.0.1:8088/ | head -1
-curl -si -H 'Host: ranju.brijeshdev.space'      http://127.0.0.1:8088/ | head -1
-curl -si -H 'Host: cors-proxy.brijeshdev.space' http://127.0.0.1:8088/ | head -1
-curl -si -H 'Host: admin.municipa.brijeshdev.space' http://127.0.0.1:8088/ | head -1
+curl -si -H 'Host: brijeshkushwaha.com.np'            http://127.0.0.1:8088/ | head -1
+curl -si -H 'Host: portfolio.brijeshkushwaha.com.np'  http://127.0.0.1:8088/ | head -1
+curl -si -H 'Host: ranju.brijeshkushwaha.com.np'      http://127.0.0.1:8088/ | head -1
+curl -si -H 'Host: cors-proxy.brijeshkushwaha.com.np' http://127.0.0.1:8088/ | head -1
+curl -si -H 'Host: admin.municipa.brijeshkushwaha.com.np' http://127.0.0.1:8088/ | head -1
 # All must return HTTP/1.1 200
 
 # Test: backend routes must be blocked in edge-static phase
-curl -si -H 'Host: cors-proxy.brijeshdev.space' http://127.0.0.1:8088/api/ | head -1
+curl -si -H 'Host: cors-proxy.brijeshkushwaha.com.np' http://127.0.0.1:8088/api/ | head -1
 # Must return HTTP/1.1 503
 
 npm run preview:edge-static:down
@@ -83,9 +83,9 @@ npm run preview:edge-static:down
 npm run preview:isolated:render
 npm run preview:isolated:up
 
-curl -si -H 'Host: subsnepal.brijeshdev.space'     http://127.0.0.1:8089/ | head -1
-curl -si -H 'Host: subsnepal.brijeshdev.space'     http://127.0.0.1:8089/api/ | head -1
-curl -si -H 'Host: api-subsnepal.brijeshdev.space' http://127.0.0.1:8089/ | head -1
+curl -si -H 'Host: subsnepal.brijeshkushwaha.com.np'     http://127.0.0.1:8089/ | head -1
+curl -si -H 'Host: subsnepal.brijeshkushwaha.com.np'     http://127.0.0.1:8089/api/ | head -1
+curl -si -H 'Host: api-subsnepal.brijeshkushwaha.com.np' http://127.0.0.1:8089/ | head -1
 # All must return 200 (stub) or 404 from backend (not 502/503)
 
 npm run preview:isolated:down
@@ -96,9 +96,9 @@ npm run preview:isolated:down
 npm run preview:shared-node:render
 npm run preview:shared-node:up
 
-curl -si -H 'Host: api-cors-proxy.brijeshdev.space'       http://127.0.0.1:8090/ | head -1
-curl -si -H 'Host: getdata-cors-proxy.brijeshdev.space'   http://127.0.0.1:8090/ | head -1
-curl -si -H 'Host: api.muncipal.brijeshdev.space'         http://127.0.0.1:8090/ | head -1
+curl -si -H 'Host: api-cors-proxy.brijeshkushwaha.com.np'       http://127.0.0.1:8090/ | head -1
+curl -si -H 'Host: getdata-cors-proxy.brijeshkushwaha.com.np'   http://127.0.0.1:8090/ | head -1
+curl -si -H 'Host: api.muncipal.brijeshkushwaha.com.np'         http://127.0.0.1:8090/ | head -1
 # All must reach the shared-low-node container (200 or 404, not 502/503)
 
 # Verify PM2 processes inside container
@@ -130,21 +130,21 @@ npm run release:apply -- --release 20260420-01
 Full curl matrix against port 8091:
 ```bash
 # Frontends
-curl -si -H 'Host: brijeshdev.space'                    http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: portfolio.brijeshdev.space'          http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: ranju.brijeshdev.space'              http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: cors-proxy.brijeshdev.space'         http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: admin.municipa.brijeshdev.space'     http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: brijeshkushwaha.com.np'                    http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: portfolio.brijeshkushwaha.com.np'          http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: ranju.brijeshkushwaha.com.np'              http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: cors-proxy.brijeshkushwaha.com.np'         http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: admin.municipa.brijeshkushwaha.com.np'     http://127.0.0.1:8091/ | head -1
 
 # APIs
-curl -si -H 'Host: cors-proxy.brijeshdev.space'             http://127.0.0.1:8091/api/ | head -1
-curl -si -H 'Host: api-cors-proxy.brijeshdev.space'         http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: getdata-cors-proxy.brijeshdev.space'     http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: subsnepal.brijeshdev.space'              http://127.0.0.1:8091/api/ | head -1
-curl -si -H 'Host: api-subsnepal.brijeshdev.space'          http://127.0.0.1:8091/ | head -1
-curl -si -H 'Host: admin.municipa.brijeshdev.space'         http://127.0.0.1:8091/api/ | head -1
-curl -si -H 'Host: admin.municipa.brijeshdev.space'         http://127.0.0.1:8091/media/ | head -1
-curl -si -H 'Host: api.muncipal.brijeshdev.space'           http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: cors-proxy.brijeshkushwaha.com.np'             http://127.0.0.1:8091/api/ | head -1
+curl -si -H 'Host: api-cors-proxy.brijeshkushwaha.com.np'         http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: getdata-cors-proxy.brijeshkushwaha.com.np'     http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: subsnepal.brijeshkushwaha.com.np'              http://127.0.0.1:8091/api/ | head -1
+curl -si -H 'Host: api-subsnepal.brijeshkushwaha.com.np'          http://127.0.0.1:8091/ | head -1
+curl -si -H 'Host: admin.municipa.brijeshkushwaha.com.np'         http://127.0.0.1:8091/api/ | head -1
+curl -si -H 'Host: admin.municipa.brijeshkushwaha.com.np'         http://127.0.0.1:8091/media/ | head -1
+curl -si -H 'Host: api.muncipal.brijeshkushwaha.com.np'           http://127.0.0.1:8091/ | head -1
 
 # Unknown host — must be 404, not 200
 curl -si -H 'Host: unknown.example.com'                     http://127.0.0.1:8091/ | head -1
@@ -213,10 +213,10 @@ cloudflared tunnel --url http://localhost:8091
 
 Cloudflared prints a temporary URL like `https://abc123.trycloudflare.com`. Open it or curl it:
 ```bash
-curl -si https://abc123.trycloudflare.com/ -H 'Host: brijeshdev.space' | head -2
+curl -si https://abc123.trycloudflare.com/ -H 'Host: brijeshkushwaha.com.np' | head -2
 ```
 
-> **Limitation:** The temporary tunnel URL is not your real domain. To test with your actual domains (`brijeshdev.space`, `subsnepal.com`) over HTTPS locally, you need to:
+> **Limitation:** The temporary tunnel URL is not your real domain. To test with your actual domains (`brijeshkushwaha.com.np`, `subsnepal.com`) over HTTPS locally, you need to:
 > 1. Temporarily point DNS to your Mac's IP (not recommended for live traffic)
 > 2. Or use a named Cloudflare Tunnel (requires a Cloudflare account with the domain — you already have this via Cloudflare)
 
@@ -225,7 +225,7 @@ curl -si https://abc123.trycloudflare.com/ -H 'Host: brijeshdev.space' | head -2
 # One-time setup (run once)
 cloudflared tunnel login                          # opens browser, picks your zone
 cloudflared tunnel create local-infra-test        # creates a named tunnel
-cloudflared tunnel route dns local-infra-test brijeshdev.space
+cloudflared tunnel route dns local-infra-test brijeshkushwaha.com.np
 cloudflared tunnel route dns local-infra-test subsnepal.com
 # (repeat for any subdomain you want to test)
 
@@ -233,11 +233,11 @@ cloudflared tunnel route dns local-infra-test subsnepal.com
 cloudflared tunnel --url http://localhost:8091 run local-infra-test
 ```
 
-Now `https://brijeshdev.space` will resolve to your local Mac for as long as the tunnel runs. TLS is terminated at Cloudflare — your local stack serves HTTP on 8091, exactly as the local release config expects.
+Now `https://brijeshkushwaha.com.np` will resolve to your local Mac for as long as the tunnel runs. TLS is terminated at Cloudflare — your local stack serves HTTP on 8091, exactly as the local release config expects.
 
 > **Tear it down** when done — `Ctrl+C` stops the tunnel. DNS routes created above must be manually removed in the Cloudflare dashboard or via:
 > ```bash
-> cloudflared tunnel route dns --delete local-infra-test brijeshdev.space
+> cloudflared tunnel route dns --delete local-infra-test brijeshkushwaha.com.np
 > ```
 
 ---
@@ -266,7 +266,7 @@ sudo bash ssl-setup/certbot-run.sh --grouped
 
 # 5. Verify certificates exist for each root domain
 sudo certbot certificates
-# You should see one cert per root domain (e.g. cors-proxy.brijeshdev.space, subsnepal.com)
+# You should see one cert per root domain (e.g. cors-proxy.brijeshkushwaha.com.np, subsnepal.com)
 # Each cert lists all its subdomains under "Domains:"
 ```
 
@@ -307,7 +307,7 @@ grep "listen 443" generated/runtime-state/releases/${REL}/nginx.conf
 
 grep "ssl_certificate" generated/runtime-state/releases/${REL}/nginx.conf
 # Must show one entry per root domain, e.g.:
-#   /etc/letsencrypt/live/cors-proxy.brijeshdev.space/fullchain.pem
+#   /etc/letsencrypt/live/cors-proxy.brijeshkushwaha.com.np/fullchain.pem
 #   /etc/letsencrypt/live/subsnepal.com/fullchain.pem
 
 grep "443:443" generated/runtime-state/releases/${REL}/compose.yaml
@@ -331,24 +331,24 @@ This packages the release, uploads it, SSHes in, and calls `deploy-on-server.sh`
 SERVER_IP=YOUR_SERVER_IP
 
 # Must redirect HTTP → HTTPS (301)
-curl -si http://brijeshdev.space/ | head -2
-curl -si http://cors-proxy.brijeshdev.space/ | head -2
+curl -si http://brijeshkushwaha.com.np/ | head -2
+curl -si http://cors-proxy.brijeshkushwaha.com.np/ | head -2
 
 # Must return 200 over HTTPS
-curl -si https://brijeshdev.space/ | head -1
-curl -si https://portfolio.brijeshdev.space/ | head -1
-curl -si https://ranju.brijeshdev.space/ | head -1
-curl -si https://cors-proxy.brijeshdev.space/ | head -1
-curl -si https://cors-proxy.brijeshdev.space/api/ | head -1
-curl -si https://api-cors-proxy.brijeshdev.space/ | head -1
-curl -si https://getdata-cors-proxy.brijeshdev.space/ | head -1
-curl -si https://subsnepal.brijeshdev.space/ | head -1
-curl -si https://subsnepal.brijeshdev.space/api/ | head -1
-curl -si https://api-subsnepal.brijeshdev.space/ | head -1
-curl -si https://admin.municipa.brijeshdev.space/ | head -1
-curl -si https://admin.municipa.brijeshdev.space/api/ | head -1
-curl -si https://admin.municipa.brijeshdev.space/media/ | head -1
-curl -si https://api.muncipal.brijeshdev.space/ | head -1
+curl -si https://brijeshkushwaha.com.np/ | head -1
+curl -si https://portfolio.brijeshkushwaha.com.np/ | head -1
+curl -si https://ranju.brijeshkushwaha.com.np/ | head -1
+curl -si https://cors-proxy.brijeshkushwaha.com.np/ | head -1
+curl -si https://cors-proxy.brijeshkushwaha.com.np/api/ | head -1
+curl -si https://api-cors-proxy.brijeshkushwaha.com.np/ | head -1
+curl -si https://getdata-cors-proxy.brijeshkushwaha.com.np/ | head -1
+curl -si https://subsnepal.brijeshkushwaha.com.np/ | head -1
+curl -si https://subsnepal.brijeshkushwaha.com.np/api/ | head -1
+curl -si https://api-subsnepal.brijeshkushwaha.com.np/ | head -1
+curl -si https://admin.municipa.brijeshkushwaha.com.np/ | head -1
+curl -si https://admin.municipa.brijeshkushwaha.com.np/api/ | head -1
+curl -si https://admin.municipa.brijeshkushwaha.com.np/media/ | head -1
+curl -si https://api.muncipal.brijeshkushwaha.com.np/ | head -1
 ```
 
 ---
@@ -473,5 +473,5 @@ scp user@server-ip:/opt/brijesh-infra/media-backup-*.tar.gz ./backups/
 | `/opt/brijesh-infra/current/nginx.conf` | Active nginx config |
 | `/opt/brijesh-infra/current/release.lock.yaml` | Release manifest + hashes |
 | `/opt/brijesh-infra/data/municipal/media/` | Persistent media files |
-| `/etc/letsencrypt/live/cors-proxy.brijeshdev.space/` | TLS certificates |
+| `/etc/letsencrypt/live/cors-proxy.brijeshkushwaha.com.np/` | TLS certificates |
 | `/opt/brijesh-infra/incoming/` | Staging area for tarballs |

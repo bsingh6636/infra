@@ -9,7 +9,7 @@
 //   node scripts/infisical/pull.mjs --env=production --only=subsnepal-api
 //
 // Flags:
-//   --env=<slug>      Infisical environment slug (required). e.g. development, staging, production
+//   --env=<slug>      Infisical environment slug or alias (required). e.g. dev, staging, prod
 //   --force           Overwrite existing files without asking
 //   --only=<name>     Only pull "global" or a specific service name
 //   --dry-run         Print what would be written, don't touch files
@@ -32,12 +32,12 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const STACK_YAML = resolve(REPO_ROOT, "config/stack.yaml");
 const INFISICAL_BIN = resolve(REPO_ROOT, "node_modules/@infisical/cli/bin/infisical");
 const ENV_ALIASES = {
-  dev: "development",
-  development: "development",
+  dev: "dev",
+  development: "dev",
   stage: "staging",
   staging: "staging",
-  prod: "production",
-  production: "production",
+  prod: "prod",
+  production: "prod",
 };
 
 function normalizeEnvironmentName(value) {
@@ -69,7 +69,7 @@ function parseArgs(argv) {
   args.pathPrefix = normalizeInfisicalPath(args.pathPrefix);
   if (!args.env) {
     throw new Error(
-      "--env=<slug> is required (e.g. --env=development, --env=staging, --env=production)",
+      "--env=<slug> is required (e.g. --env=dev, --env=staging, --env=prod)",
     );
   }
   return args;
