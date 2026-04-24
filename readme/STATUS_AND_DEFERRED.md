@@ -33,6 +33,14 @@
 - `getdata`
 - `municipal-api`
 
+### Bug Fixes
+
+- **env value quoting** — `serializeEnvValue` in `scripts/build/shared-node-preview.mjs`
+  and `scripts/build/isolated-preview.mjs` now single-quotes all generated env values.
+  Previously, values containing `&` (e.g. JWT secrets) were written unquoted; sh parsed
+  the `&` as a background operator and ran the trailing text as a foreground command,
+  which exited 127 under `set -e` and crashed every PM2 process on boot.
+
 ### Phase 6
 
 - local release snapshots

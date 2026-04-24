@@ -108,6 +108,32 @@ docker exec $(docker ps -qf name=shared-low-node) pm2 list
 npm run preview:shared-node:down
 ```
 
+> **Troubleshooting — 502 Bad Gateway / PM2 shows `errored`**
+>
+> If the curls return 502 and `pm2 list` shows all processes as `errored` (restart count
+> near 10), the PM2 start scripts are crashing on boot. Diagnose with:
+>
+> ```bash
+> docker exec $(docker ps -qf name=shared-low-node) pm2 logs --lines 50
+> ```
+>
+> **Common cause:** env values that contain shell metacharacters (`&`, `;`, `|`) break
+> the `set -eu; . /srv/env/<service>.env` sourcing in the start script. sh treats `&`
+> in an unquoted value as a background operator, and the trailing token runs as a
+> foreground command that exits 127, killing the script under `set -e`.
+>
+> **Fix:** the `serializeEnvValue` function in `scripts/build/shared-node-preview.mjs`
+> and `scripts/build/isolated-preview.mjs` now single-quotes all generated env values
+> so special characters are treated literally. If you hit this after a merge from an
+> older branch, ensure your branch has that fix, then rebuild the stub:
+>
+> ```bash
+> npm run build:shared-node-preview:stub
+> npm run preview:shared-node:down
+> npm run preview:shared-node:render
+> npm run preview:shared-node:up
+> ```
+
 ### Step 4 — Publish a local integrated release (HTTP only)
 
 ```bash

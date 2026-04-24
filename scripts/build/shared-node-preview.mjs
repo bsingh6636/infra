@@ -68,7 +68,8 @@ async function copyDirectoryContents(sourceDirectory, destinationDirectory) {
 }
 
 function serializeEnvValue(value) {
-  return String(value ?? "").replace(/\r?\n/g, "\\n");
+  const str = String(value ?? "").replace(/\r?\n/g, "\\n");
+  return `'${str.replace(/'/g, "'\\''")}'`;
 }
 
 function groupServicesByName(services) {

@@ -228,7 +228,8 @@ async function buildRealFrontendContext(stack, service, checkoutRoot, contextDir
 }
 
 function serializeEnvValue(value) {
-  return String(value ?? "").replace(/\r?\n/g, "\\n");
+  const str = String(value ?? "").replace(/\r?\n/g, "\\n");
+  return `'${str.replace(/'/g, "'\\''")}'`;
 }
 
 async function writeBackendEnvFile(stack, service, envDirectory) {
