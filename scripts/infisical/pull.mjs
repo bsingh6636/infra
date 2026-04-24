@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // pull.mjs
-// Pull secrets from Infisical into local env/ files.
+// Pull env values from Infisical into local env/ files.
 //
 // Usage:
 //   node scripts/infisical/pull.mjs --env=development
@@ -92,21 +92,54 @@ function loadStack() {
   return parseYaml(readFileSync(STACK_YAML, "utf8"));
 }
 
+function collectGlobalTargets(stack, only) {
+  if (only && only !== "global") {
+    return [];
+  }
+
+  const files = [
+    ["global_nonsecret", stack.env?.global_nonsecret],
+    ["global_secret", stack.env?.global_secret ?? "env/global.secrets.env"],
+  ];
+
+  return files
+    .filter(([, localPath]) => localPath)
+    .map(([scope, localPath]) => ({
+      label: `global ${scope}`,
+      localPath: resolve(REPO_ROOT, localPath),
+    }));
+}
+
 function collectServiceTargets(stack, only) {
   const services = Object.entries(stack.services || {});
   const targets = [];
   for (const [name, svc] of services) {
     if (svc?.enabled === false) continue;
     if (only && only !== name) continue;
-    // Only pull for services that actually declare a secret file.
-    const secretFile = svc?.env?.files?.secret;
-    if (!secretFile) continue;
-    targets.push({
-      name,
-      localPath: resolve(REPO_ROOT, secretFile),
-    });
+
+    const files = [
+      ["service_nonsecret", svc?.env?.files?.nonsecret],
+      ["service_secret", svc?.env?.files?.secret],
+    ];
+
+    for (const [scope, localPath] of files) {
+      if (!localPath) continue;
+      targets.push({
+        label: `${name} ${scope}`,
+        localPath: resolve(REPO_ROOT, localPath),
+      });
+    }
   }
   return targets;
+}
+
+function addPlanEntry(plan, seenPaths, entry) {
+  if (seenPaths.has(entry.localPath)) {
+    return;
+  }
+
+  seenPaths.add(entry.localPath);
+  plan.push(entry);
 }
 
 function writeIfAllowed({ localPath, contents, force, dryRun }) {
@@ -135,22 +168,18 @@ async function main() {
   );
 
   const plan = [];
+  const seenPaths = new Set();
 
-  // Global secrets
-  if (!args.only || args.only === "global") {
-    const globalFile = stack.env?.global_secret ?? "env/global.secrets.env";
-    plan.push({
-      label: "global",
-      localPath: resolve(REPO_ROOT, globalFile),
+  for (const target of collectGlobalTargets(stack, args.only)) {
+    addPlanEntry(plan, seenPaths, {
+      ...target,
       infisicalPath: args.pathPrefix === "/" ? "/" : args.pathPrefix,
     });
   }
 
-  // Per-service secrets
   for (const target of collectServiceTargets(stack, args.only)) {
-    plan.push({
-      label: target.name,
-      localPath: target.localPath,
+    addPlanEntry(plan, seenPaths, {
+      ...target,
       infisicalPath: args.pathPrefix,
     });
   }
