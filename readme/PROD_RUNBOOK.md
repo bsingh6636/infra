@@ -22,15 +22,15 @@ This is the end-to-end guide to go from a clean repo to a live production stack 
 
 Run every step below in order. Do not skip any. Port 8091 is used as the local integrated runtime.
 
-### Step 0 — Pull secrets from Infisical
+### Step 0 — Pull env files from Infisical
 
-Ensure you have the latest secrets for the environment you are deploying (usually `production`).
+Ensure you have the latest env values for the environment you are deploying (usually `production`). In Infisical mode this writes every configured local env file, including `env/global.env`, `env/global.secrets.env`, `env/services/*.env`, and `env/services-secrets/*.env`.
 
 ```bash
 # Log in if needed
 npm run infisical:login
 
-# Pull production secrets into local env/ files
+# Pull production env values into local env/ files
 npm run infisical:pull:production -- --force
 ```
 

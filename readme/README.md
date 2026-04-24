@@ -14,22 +14,22 @@ This folder is the current documentation set for the new infra workflow.
 - [`MEDIA_STORAGE.md`](./MEDIA_STORAGE.md) — safe handling of `municipal-api` media storage
 - [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) — current status, completed phases, deferred work
 
-## Secrets Management
+## Environment Management
 
-We use **Infisical** to manage and sync `.secrets.env` files across environments.
+We use **Infisical** to manage and sync local env files across environments.
 
 | Command | What it does |
 |---|---|
 | `npm run infisical:login` | Log in to the Infisical CLI |
 | `npm run infisical:init` | Link the repository to an Infisical project |
-| `npm run infisical:pull:development` | Pull development secrets locally |
-| `npm run infisical:pull:staging` | Pull staging secrets locally |
-| `npm run infisical:pull:production` | Pull production secrets locally |
+| `npm run infisical:pull:development` | Pull development env values locally |
+| `npm run infisical:pull:staging` | Pull staging env values locally |
+| `npm run infisical:pull:production` | Pull production env values locally |
 
 The pull script accepts friendly names but calls Infisical with this project's actual slugs: `dev`, `staging`, and `prod`.
 
-Secrets are currently stored at the Infisical root path `/`.
-The pull script exports from that path and writes the result into the local `.secrets.env` files declared in `stack.yaml`.
+Env values are currently stored at the Infisical root path `/`.
+The pull script exports from that path and writes the same dotenv payload into every local env file declared in `stack.yaml`: `env/global.env`, `env/global.secrets.env`, `env/services/*.env`, and `env/services-secrets/*.env`.
 Missing local directories are created automatically before writing.
 
 See [`MASTER_GUIDE.md`](./MASTER_GUIDE.md) for full Infisical details.

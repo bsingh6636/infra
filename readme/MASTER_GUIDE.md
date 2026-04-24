@@ -42,9 +42,9 @@ Applied in this order:
 3. `env/services/<service>.env`
 4. `env/services-secrets/<service>.env`
 
-## Secrets Management (Infisical)
+## Environment Management (Infisical)
 
-We use [Infisical](https://infisical.com/) to securely manage and sync secrets across development, staging, and production environments. Secrets are pulled from Infisical and saved into the `.secrets.env` files listed above.
+We use [Infisical](https://infisical.com/) to manage the environment values for development, staging, and production. In Infisical mode, the pull script exports one dotenv payload from Infisical and writes it into every env file listed above.
 
 ### Setup
 
@@ -55,9 +55,9 @@ npm run infisical:login               # log in to your account
 npm run infisical:init                # link this repo to the Infisical project
 ```
 
-### Pulling Secrets
+### Pulling Env Values
 
-Pull all secrets for a specific environment:
+Pull all env values for a specific environment:
 
 ```bash
 npm run infisical:pull:development    # pulls into local env/ files
@@ -71,7 +71,7 @@ These commands map to the actual Infisical environment slugs used by this projec
 Advanced pull options:
 
 ```bash
-# Force overwrite existing local secret files
+# Force overwrite existing local env files
 npm run infisical:pull -- --env=production --force
 
 # Pull only for a specific service
@@ -83,11 +83,11 @@ npm run infisical:pull -- --env=production --dry-run
 
 ### Infisical Structure
 
-- Secrets are currently stored at the root `/` path in Infisical.
-- The pull script exports from a single Infisical path and writes that content into the local secret files declared in `stack.yaml`.
+- Env values are currently stored at the root `/` path in Infisical.
+- The pull script exports from a single Infisical path and writes that same content into all configured local env files: `env/global.env`, `env/global.secrets.env`, `env/services/*.env`, and `env/services-secrets/*.env`.
 - Local directories are created automatically if they do not exist yet.
 
-The `npm run validate` command will check if all required secret files exist locally, but it does NOT check if they are up-to-date with Infisical. Always run a pull before a major release.
+The `npm run validate` command still checks the physical env files declared in `stack.yaml`. If you are using Infisical, run the pull first so those files exist locally. If you are managing env files manually, create/update the same files yourself before validating.
 
 ## Main Commands
 
