@@ -47,7 +47,7 @@
     "infisical:pull:prod:force": "node scripts/infisical/pull.mjs --env=prod --force",
     "with-secrets": "bash -c 'if [ \"$USE_INFISICAL\" = \"1\" ]; then exec infisical run --env=${INFISICAL_ENV:-development} -- \"$@\"; else exec \"$@\"; fi' --",
     "release:publish": "node scripts/deploy/publish.mjs",
-    "release:publish:prod": "node scripts/deploy/publish.mjs --tls",
+    "release:publish:prod": "node scripts/deploy/publish.mjs --tls --port 80",
     "release:apply": "node scripts/deploy/apply.mjs",
     "release:rollback": "node scripts/rollback/index.mjs"
   },

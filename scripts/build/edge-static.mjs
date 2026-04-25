@@ -162,7 +162,7 @@ async function buildRealSite(stack, service, checkoutRoot, outputDirectory) {
     }
   }
 
-  await runCommand(selected.install[0], selected.install.slice(1), {
+  await runCommand(selected.install[0], [...selected.install.slice(1), "--include=dev"], {
     cwd: projectDirectory,
     env: buildEnv,
   });

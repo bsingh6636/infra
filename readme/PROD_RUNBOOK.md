@@ -13,6 +13,7 @@ This is the end-to-end guide to go from a clean repo to a live production stack 
 | Infisical CLI installed locally | `infisical --version` |
 | SSH key access to production server | `ssh user@server-ip echo ok` |
 | Cloudflare API token in `.env` as `CLOUDFLARE_API_TOKEN` | `grep CLOUDFLARE .env` |
+| Cloud/Azure Security Group: ports 80 and 443 open | Azure Portal / NSG Check |
 | All env files present (`env/global.env`, `env/global.secrets.env`, service envs) | `npm run validate` |
 | DNS records for all domains pointing to server IP | Cloudflare dashboard |
 

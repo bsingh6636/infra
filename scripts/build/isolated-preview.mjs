@@ -210,7 +210,7 @@ async function buildRealFrontendContext(stack, service, checkoutRoot, contextDir
 
   const packageManager = await selectPackageManager(projectDirectory);
 
-  await runCommand(packageManager.install[0], packageManager.install.slice(1), {
+  await runCommand(packageManager.install[0], [...packageManager.install.slice(1), "--include=dev"], {
     cwd: projectDirectory,
     env: process.env,
   });
