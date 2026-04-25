@@ -274,26 +274,29 @@ export async function buildSharedNodePreviewGroups(stack, options = {}) {
     await ensureEmptyDirectory(contextDirectory);
     await mkdir(appsDirectory, { recursive: true });
 
-    for (const service of services) {
-      const appDirectory = path.join(appsDirectory, service.name);
+    // Build all services in parallel for speed
+    await Promise.all(
+      services.map(async (service) => {
+        const appDirectory = path.join(appsDirectory, service.name);
 
-      if (stub) {
-        await writeStubServiceApp(appDirectory, service);
-      } else {
-        await writeRealServiceApp(stack, service, checkoutRoot, appDirectory);
-      }
+        if (stub) {
+          await writeStubServiceApp(appDirectory, service);
+        } else {
+          await writeRealServiceApp(stack, service, checkoutRoot, appDirectory);
+        }
 
-      const envPath = await writeServiceEnvFile(stack, service, groupEnvDirectory);
-      await writeStartScript(startScriptsDirectory, service, stub);
+        const envPath = await writeServiceEnvFile(stack, service, groupEnvDirectory);
+        await writeStartScript(startScriptsDirectory, service, stub);
 
-      builtServices.push({
-        service: service.name,
-        group: groupName,
-        mode: stub ? "stub" : "real",
-        contextDirectory,
-        envFile: envPath,
-      });
-    }
+        builtServices.push({
+          service: service.name,
+          group: groupName,
+          mode: stub ? "stub" : "real",
+          contextDirectory,
+          envFile: envPath,
+        });
+      }),
+    );
 
     await writePm2Ecosystem(pm2Directory, groupName, services);
     await writeGroupDockerfile(contextDirectory, groupName, services);
@@ -304,6 +307,9 @@ export async function buildSharedNodePreviewGroups(stack, options = {}) {
     `${JSON.stringify({ builtServices }, null, 2)}\n`,
     "utf8",
   );
+
+  // Clean up source checkouts to save disk space
+  await rm(checkoutRoot, { recursive: true, force: true });
 
   return builtServices;
 }

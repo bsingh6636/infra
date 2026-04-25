@@ -395,47 +395,53 @@ export async function buildIsolatedPreviewServices(stack, options = {}) {
   await mkdir(envRoot, { recursive: true });
   await mkdir(checkoutRoot, { recursive: true });
 
-  for (const service of isolatedServices) {
-    const contextDirectory = path.join(buildRoot, service.name);
-    const envPath =
-      service.kind === "backend"
-        ? await writeBackendEnvFile(stack, service, envRoot)
-        : null;
+  // Build all isolated services in parallel for speed
+  await Promise.all(
+    isolatedServices.map(async (service) => {
+      const contextDirectory = path.join(buildRoot, service.name);
+      const envPath =
+        service.kind === "backend"
+          ? await writeBackendEnvFile(stack, service, envRoot)
+          : null;
 
-    await ensureEmptyDirectory(contextDirectory);
+      await ensureEmptyDirectory(contextDirectory);
 
-    if (service.kind === "frontend") {
-      if (service.deploy.frontend_runtime !== "static-container") {
-        throw new Error(
-          `Isolated frontend ${service.name} must use deploy.frontend_runtime=static-container in Phase 4.`,
-        );
-      }
+      if (service.kind === "frontend") {
+        if (service.deploy.frontend_runtime !== "static-container") {
+          throw new Error(
+            `Isolated frontend ${service.name} must use deploy.frontend_runtime=static-container in Phase 4.`,
+          );
+        }
 
-      if (stub) {
-        await writeStubFrontendContext(contextDirectory, service);
+        if (stub) {
+          await writeStubFrontendContext(contextDirectory, service);
+        } else {
+          await buildRealFrontendContext(stack, service, checkoutRoot, contextDirectory);
+        }
+      } else if (stub) {
+        await writeStubBackendContext(contextDirectory, service);
       } else {
-        await buildRealFrontendContext(stack, service, checkoutRoot, contextDirectory);
+        await writeRealBackendContext(stack, service, checkoutRoot, contextDirectory);
       }
-    } else if (stub) {
-      await writeStubBackendContext(contextDirectory, service);
-    } else {
-      await writeRealBackendContext(stack, service, checkoutRoot, contextDirectory);
-    }
 
-    builtServices.push({
-      service: service.name,
-      mode: stub ? "stub" : "real",
-      kind: service.kind,
-      contextDirectory,
-      envFile: envPath,
-    });
-  }
+      builtServices.push({
+        service: service.name,
+        mode: stub ? "stub" : "real",
+        kind: service.kind,
+        contextDirectory,
+        envFile: envPath,
+      });
+    }),
+  );
 
   await writeFile(
     path.join(generatedIsolatedPreviewRoot, "manifest.json"),
     `${JSON.stringify({ builtServices }, null, 2)}\n`,
     "utf8",
   );
+
+  // Clean up source checkouts to save disk space
+  await rm(checkoutRoot, { recursive: true, force: true });
 
   return builtServices;
 }
