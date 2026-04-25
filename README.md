@@ -15,7 +15,7 @@ The main documentation lives in [`readme/`](./readme):
 
 - `config/stack.yaml` is the source of truth
 - validation, preview flows, shared-node preview, and local release snapshots are implemented
-- TLS and final production cutover are still intentionally deferred
+- TLS and production deployment are implemented and active
 
 ## Quick Start
 

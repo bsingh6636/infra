@@ -40,6 +40,12 @@
   Previously, values containing `&` (e.g. JWT secrets) were written unquoted; sh parsed
   the `&` as a background operator and ran the trailing text as a foreground command,
   which exited 127 under `set -e` and crashed every PM2 process on boot.
+- **frontend build dependencies** — `scripts/build/edge-static.mjs` and `scripts/build/isolated-preview.mjs`
+  now use `--include=dev` during `npm install`. This ensures tools like `tsc` and `vite` are
+  available for builds even when `NODE_ENV=production` is set in the environment.
+- **production port default** — `package.json` now defaults the production release port
+  to `80` in the `release:publish:prod` script, avoiding the default local testing
+  port of `8091`.
 
 ### Phase 6
 
@@ -49,6 +55,7 @@
 
 ### Phase 7 (Production Readiness)
 
+- real non-stub end-to-end proof across every service
 - `--build` immutability fix in `apply.mjs` and `rollback/index.mjs`
 - stack-driven storage directory creation in `apply.mjs` (replaces hardcoded `municipal/media`)
 - TLS rendering in `release-nginx.mjs` — per-host cert resolution from `tls.root_domains`
@@ -62,7 +69,6 @@
 
 ## Deferred
 
-- real non-stub end-to-end proof across every service
 - release pruning automation
 - CI/CD integration
 
