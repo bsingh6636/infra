@@ -218,11 +218,19 @@ async function buildRealFrontendContext(stack, service, checkoutRoot, contextDir
     env: buildEnv,
   });
 
-  console.log(`[build] ${service.name} REACT_APP_VM=${serviceEnv.REACT_APP_VM}`);
+  // Only embed vars with frontend-safe prefixes — never write backend secrets to .env.local
+  const FRONTEND_PREFIXES = ["REACT_APP_", "VITE_", "NEXT_PUBLIC_"];
+  const frontendEnv = Object.fromEntries(
+    Object.entries(serviceEnv).filter(([key]) =>
+      FRONTEND_PREFIXES.some((prefix) => key.startsWith(prefix)),
+    ),
+  );
 
-  // Also write to .env.local as a fallback for react-scripts
+  console.log(`[build] ${service.name} frontend env keys: ${Object.keys(frontendEnv).join(", ") || "(none)"}`);
+
+  // Write only frontend-safe vars to .env.local for react-scripts fallback
   const envLocalPath = path.join(projectDirectory, ".env.local");
-  const envLocalContent = Object.entries(serviceEnv)
+  const envLocalContent = Object.entries(frontendEnv)
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
   await writeFile(envLocalPath, envLocalContent, "utf8");

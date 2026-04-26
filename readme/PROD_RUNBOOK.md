@@ -27,6 +27,8 @@ Run every step below in order. Do not skip any. Port 8091 is used as the local i
 
 Ensure you have the latest env values for the environment you are deploying (usually `production`). In Infisical mode this writes every configured local env file, including `env/global.env`, `env/global.secrets.env`, `env/services/*.env`, and `env/services-secrets/*.env`.
 
+> **Frontend build-time vars:** Frontend services (e.g. `subsnepal-web`) require build-time env vars (e.g. `REACT_APP_VM=true`) to be present in Infisical before pulling. These are baked into the static bundle at build time — restarting the container will not pick up changes; a full rebuild is required.
+
 ```bash
 # Log in if needed
 npm run infisical:login
