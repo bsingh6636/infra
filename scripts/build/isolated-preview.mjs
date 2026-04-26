@@ -210,14 +210,17 @@ async function buildRealFrontendContext(stack, service, checkoutRoot, contextDir
 
   const packageManager = await selectPackageManager(projectDirectory);
 
+  const { merged: serviceEnv } = await mergeServiceEnv(stack, service);
+  const buildEnv = { ...process.env, ...serviceEnv };
+
   await runCommand(packageManager.install[0], [...packageManager.install.slice(1), "--include=dev"], {
     cwd: projectDirectory,
-    env: process.env,
+    env: buildEnv,
   });
 
   await runCommand(packageManager.build[0], packageManager.build.slice(1), {
     cwd: projectDirectory,
-    env: process.env,
+    env: buildEnv,
   });
 
   const outputDirectory = await detectFrontendOutputDirectory(projectDirectory, service);
