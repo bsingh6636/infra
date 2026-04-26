@@ -141,6 +141,12 @@ npm run preview:shared-node:down
 npm run release:publish -- --release 20260420-01 --port 8091
 ```
 
+> **Note on Frontend Environment Variables:** If you are building "real" (non-stub) isolated
+> frontends (like `subsnepal-web`), ensure you have pulled secrets from Infisical first.
+> The build script automatically injects these into the `npm run build` environment
+> and generates a `.env.local` fallback. This ensures that variables like `REACT_APP_VM`
+> are correctly baked into your static assets.
+
 Inspect the release:
 ```bash
 cat generated/runtime-state/releases/20260420-01/release.lock.yaml

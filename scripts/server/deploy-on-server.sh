@@ -69,7 +69,7 @@ fi
 
 # ── Bring up new stack ──────────────────────────────────────────────────────
 echo "[deploy] Starting release ${RELEASE_ID}..."
-docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --remove-orphans --pull never
+docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-orphans --pull never
 
 # ── Flip the current symlink ────────────────────────────────────────────────
 RELATIVE_TARGET="releases/${RELEASE_ID}"

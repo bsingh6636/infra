@@ -218,6 +218,15 @@ async function buildRealFrontendContext(stack, service, checkoutRoot, contextDir
     env: buildEnv,
   });
 
+  console.log(`[build] ${service.name} REACT_APP_VM=${serviceEnv.REACT_APP_VM}`);
+
+  // Also write to .env.local as a fallback for react-scripts
+  const envLocalPath = path.join(projectDirectory, ".env.local");
+  const envLocalContent = Object.entries(serviceEnv)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  await writeFile(envLocalPath, envLocalContent, "utf8");
+
   await runCommand(packageManager.build[0], packageManager.build.slice(1), {
     cwd: projectDirectory,
     env: buildEnv,

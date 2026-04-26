@@ -147,6 +147,7 @@ services:
     env:
       files:
         nonsecret: env/services/subsnepal-web.env
+        secret: env/services-secrets/subsnepal-web.env
 
   subsnepal-api:
     enabled: true

@@ -46,6 +46,13 @@
 - **production port default** — `package.json` now defaults the production release port
   to `80` in the `release:publish:prod` script, avoiding the default local testing
   port of `8091`.
+- **frontend environment variables** — `scripts/build/isolated-preview.mjs` now correctly
+  merges and injects service environment variables (like `REACT_APP_VM`) into the
+  frontend build process. It also writes a `.env.local` fallback to ensure tools
+  like `react-scripts` pick up the values during compilation.
+- **immutable release rebuilds** — `scripts/server/deploy-on-server.sh` now uses
+  `docker compose up --build`. This prevents Docker from using stale cached images
+  when a release snapshot contains updated files (critical for static asset changes).
 
 ### Phase 6
 
