@@ -144,6 +144,10 @@ services:
       frontend_runtime: static-container
     runtime:
       container_port: 80
+    env:
+      files:
+        nonsecret: env/services/subsnepal-web.env
+        secret: env/services-secrets/subsnepal-web.env
 
   subsnepal-api:
     enabled: true
