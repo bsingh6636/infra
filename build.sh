@@ -135,8 +135,8 @@ get_context() {
         bae-portfolio) echo "git@github.com:bsingh6636/cuddly-octo-funicular.git#main" ;;
         subsnepal-frontend) echo "git@github.com:bsingh6636/oasisNep.git#main:reactJs" ;;
         subsnepal-backend) echo "git@github.com:bsingh6636/oasisNep.git#main:nodejs" ;;
-        municipal-backend) echo "git@github.com:codesujan01/Municipal-Backend.git#media_cleanup" ;;
-        municipal-admin) echo "git@github.com:codesujan01/Municipal-admin-web.git#media_cleanup" ;;
+        municipal-backend) echo "git@github.com:codesujan01/Municipal-Backend.git#document_tracking" ;;
+        municipal-admin) echo "git@github.com:codesujan01/Municipal-admin-web.git#document_tracking" ;;
         *) echo ""; return 1 ;;
     esac
 }
