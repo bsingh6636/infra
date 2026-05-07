@@ -24,6 +24,10 @@ tls:
       mode: wildcard_dns
       dns_provider: cloudflare
       cert_name: subsnepal.com
+    brijeshdev.space:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: brijeshdev.space
 
 env:
   global_nonsecret: env/global.env
@@ -46,10 +50,10 @@ sources:
     ref: main
   municipal_backend:
     repo: git@github.com:codesujan01/Municipal-Backend.git
-    ref: media_cleanup
+    ref: jobs
   municipal_admin:
     repo: git@github.com:codesujan01/Municipal-admin-web.git
-    ref: media_cleanup
+    ref: document_tracking
 
 groups:
   low-node:
@@ -204,6 +208,8 @@ ingress:
     hosts:
       - name: brijeshkushwaha.com.np
       - name: portfolio.brijeshkushwaha.com.np
+      - name: brijeshdev.space
+      - name: portfolio.brijeshdev.space
     upstream:
       type: static
       service: portfolio-web
@@ -274,6 +280,7 @@ ingress:
   - name: municipal-admin
     hosts:
       - name: admin.municipa.brijeshkushwaha.com.np
+      - name: admin.municipal.brijeshdev.space
     upstream:
       type: static
       service: municipal-admin
@@ -289,6 +296,7 @@ ingress:
   - name: municipal-api
     hosts:
       - name: api.muncipal.brijeshkushwaha.com.np
+      - name: api.municipal.brijeshdev.space
         acknowledge_nonstandard: true
     upstream:
       type: proxy
