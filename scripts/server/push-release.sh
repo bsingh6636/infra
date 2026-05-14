@@ -31,7 +31,7 @@ if [[ ! -d "${RELEASE_DIR}" ]]; then
 fi
 
 echo "[push] Packaging ${RELEASE_ID}..."
-tar -czf "${TARBALL}" -C "${RELEASE_DIR}" .
+COPYFILE_DISABLE=1 tar -czf "${TARBALL}" -C "${RELEASE_DIR}" .
 
 echo "[push] Uploading tarball to ${SERVER}:${REMOTE_INCOMING}/${RELEASE_ID}.tar.gz"
 ssh "${SERVER}" "mkdir -p ${REMOTE_INCOMING}"
