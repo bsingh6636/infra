@@ -25,6 +25,16 @@ function indent(lines, spaces = 4) {
   return lines.map((line) => `${prefix}${line}`);
 }
 
+function renderErrorPages() {
+  return [
+    'error_page 413 @payload_too_large;',
+    'location @payload_too_large {',
+    '    default_type application/json;',
+    '    return 413 \'{"success":false,"message":"Request too large. Maximum upload size is 25MB."}\';',
+    '}',
+  ];
+}
+
 function renderProxyHeaders() {
   return [
     "proxy_set_header Host $host;",
@@ -99,7 +109,8 @@ function renderServerBlock(stack, entry) {
     "server {",
     ...indent(["listen 80;", `server_name ${entry.hosts.map((host) => host.name).join(" ")};`]),
     "",
-    ...indent(["client_max_body_size 25m;"]),
+    ...indent(["client_max_body_size 25m;",  ""]),
+    ...indent(renderErrorPages()),
   ];
 
   if (entry.routes.length > 0) {
@@ -185,7 +196,9 @@ function renderTlsServerBlock(stack, entry) {
         "ssl_prefer_server_ciphers off;",
         "",
         "client_max_body_size 25m;",
+        "",
       ]),
+      ...indent(renderErrorPages()),
     ];
 
     if (entry.routes.length > 0) {

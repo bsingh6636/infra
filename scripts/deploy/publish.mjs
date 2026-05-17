@@ -287,10 +287,18 @@ async function main() {
     );
   }
 
+  // For production (TLS) releases, bind mount paths in compose.yaml must use the
+  // server's real data path, not the local generated/ directory. Derive it from
+  // stack.project.data_root so Docker on the server mounts the correct host path.
+  const composeStateRoot =
+    options.tls && stack.project.data_root
+      ? path.dirname(stack.project.data_root)
+      : layout.stateRoot;
+
   await writeFile(
     path.join(releaseDirectory, "compose.yaml"),
     renderReleaseCompose(stack, {
-      stateRoot: layout.stateRoot,
+      stateRoot: composeStateRoot,
       port: options.port,
       tls: options.tls,
     }),

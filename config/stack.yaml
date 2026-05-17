@@ -50,7 +50,7 @@ sources:
     ref: main
   municipal_backend:
     repo: git@github.com:codesujan01/Municipal-Backend.git
-    ref: jobs
+    ref: notp
   municipal_admin:
     repo: git@github.com:codesujan01/Municipal-admin-web.git
     ref: side_nav
@@ -135,39 +135,39 @@ services:
         nonsecret: env/services/getdata.env
         secret: env/services-secrets/getdata.env
 
-  subsnepal-web:
-    enabled: true
-    kind: frontend
-    source:
-      key: oasis
-      context: reactJs
-    build:
-      output_dir: auto
-    deploy:
-      mode: isolated
-      frontend_runtime: static-container
-    runtime:
-      container_port: 80
-    env:
-      files:
-        nonsecret: env/services/subsnepal-web.env
-        secret: env/services-secrets/subsnepal-web.env
+  # subsnepal-web:
+  #   enabled: true
+  #   kind: frontend
+  #   source:
+  #     key: oasis
+  #     context: reactJs
+  #   build:
+  #     output_dir: auto
+  #   deploy:
+  #     mode: isolated
+  #     frontend_runtime: static-container
+  #   runtime:
+  #     container_port: 80
+  #   env:
+  #     files:
+  #       nonsecret: env/services/subsnepal-web.env
+  #       secret: env/services-secrets/subsnepal-web.env
 
-  subsnepal-api:
-    enabled: true
-    kind: backend
-    source:
-      key: oasis
-      context: nodejs
-    deploy:
-      mode: isolated
-    runtime:
-      port: 9090
-      start: npm start
-    env:
-      files:
-        nonsecret: env/services/subsnepal-api.env
-        secret: env/services-secrets/subsnepal-api.env
+  # subsnepal-api:
+  #   enabled: true
+  #   kind: backend
+  #   source:
+  #     key: oasis
+  #     context: nodejs
+  #   deploy:
+  #     mode: isolated
+  #   runtime:
+  #     port: 9090
+  #     start: npm start
+  #   env:
+  #     files:
+  #       nonsecret: env/services/subsnepal-api.env
+  #       secret: env/services-secrets/subsnepal-api.env
 
   municipal-admin:
     enabled: true
@@ -250,32 +250,32 @@ ingress:
       type: proxy
       service: getdata
 
-  - name: subsnepal-web
-    hosts:
-      - name: subsnepal.brijeshkushwaha.com.np
-      - name: subsnepal.com
-      - name: www.subsnepal.com
-    upstream:
-      type: proxy
-      service: subsnepal-web
-    routes:
-      - path: /api/
-        service: subsnepal-api
-        protocol: http
-      - path: /ws/
-        service: subsnepal-api
-        protocol: websocket
-      - path: /events/
-        service: subsnepal-api
-        protocol: sse
+  # - name: subsnepal-web
+  #   hosts:
+  #     - name: subsnepal.brijeshkushwaha.com.np
+  #     - name: subsnepal.com
+  #     - name: www.subsnepal.com
+  #   upstream:
+  #     type: proxy
+  #     service: subsnepal-web
+  #   routes:
+  #     - path: /api/
+  #       service: subsnepal-api
+  #       protocol: http
+  #     - path: /ws/
+  #       service: subsnepal-api
+  #       protocol: websocket
+  #     - path: /events/
+  #       service: subsnepal-api
+  #       protocol: sse
 
-  - name: subsnepal-api
-    hosts:
-      - name: api-subsnepal.brijeshkushwaha.com.np
-      - name: api.subsnepal.com
-    upstream:
-      type: proxy
-      service: subsnepal-api
+  # - name: subsnepal-api
+  #   hosts:
+  #     - name: api-subsnepal.brijeshkushwaha.com.np
+  #     - name: api.subsnepal.com
+  #   upstream:
+  #     type: proxy
+  #     service: subsnepal-api
 
   - name: municipal-admin
     hosts:

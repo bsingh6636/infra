@@ -53,21 +53,12 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
   exit 1
 fi
 
-# ── Stop previous stack (graceful) ─────────────────────────────────────────
-PREV_RELEASE=""
+# ── Bring up new stack (only restart changed containers) ───────────────────
 if [[ -L "${CURRENT_LINK}" ]]; then
   PREV_RELEASE="$(basename "$(readlink -f "${CURRENT_LINK}")")"
   echo "[deploy] Previous release: ${PREV_RELEASE}"
-
-  PREV_COMPOSE="${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml"
-
-  if [[ -f "${PREV_COMPOSE}" ]]; then
-    echo "[deploy] Bringing down previous stack..."
-    docker compose -p "${PROJECT_NAME}" -f "${PREV_COMPOSE}" down --remove-orphans || true
-  fi
 fi
 
-# ── Bring up new stack ──────────────────────────────────────────────────────
 echo "[deploy] Starting release ${RELEASE_ID}..."
 docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-orphans --pull never
 
