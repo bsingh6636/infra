@@ -50,10 +50,10 @@ sources:
     ref: main
   municipal_backend:
     repo: git@github.com:codesujan01/Municipal-Backend.git
-    ref: notp
+    ref: training22
   municipal_admin:
     repo: git@github.com:codesujan01/Municipal-admin-web.git
-    ref: side_nav
+    ref: training22
 
 groups:
   low-node:
@@ -192,6 +192,8 @@ services:
     runtime:
       port: 4303
       start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4303"
     env:
       files:
         nonsecret: env/services/municipal-api.env
@@ -201,7 +203,7 @@ services:
     storage:
       - type: bind
         source: /opt/brijesh-infra/data/municipal/media
-        target: /srv/shared/municipal-api/media
+        target: /srv/apps/municipal-api/media
 
 ingress:
   - name: portfolio
@@ -227,6 +229,7 @@ ingress:
     hosts:
       - name: cors-proxy.brijeshkushwaha.com.np
       - name: cors-proxy2.brijeshkushwaha.com.np
+      - name: cors-proxy.brijeshdev.space
     upstream:
       type: static
       service: cors-web
@@ -239,6 +242,7 @@ ingress:
   - name: cors-api
     hosts:
       - name: api-cors-proxy.brijeshkushwaha.com.np
+      - name: api-cors-proxy.brijeshdev.space
     upstream:
       type: proxy
       service: cors-api
@@ -246,6 +250,7 @@ ingress:
   - name: getdata
     hosts:
       - name: getdata-cors-proxy.brijeshkushwaha.com.np
+      - name: getdata-cors-proxy.brijeshdev.space
     upstream:
       type: proxy
       service: getdata

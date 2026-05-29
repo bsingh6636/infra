@@ -175,12 +175,18 @@ async function writeStartScript(scriptsDirectory, service, stub) {
   const command = stub
     ? `exec node /srv/apps/${service.name}/server.mjs`
     : `exec sh -lc ${JSON.stringify(service.runtime.start)}`;
+  const hardcodedEnv = service.runtime.env ?? {};
+  const hardcodedExports = Object.entries(hardcodedEnv)
+    .map(([key, value]) => `export ${key}=${JSON.stringify(String(value))}`)
+    .join("\n");
+
   const contents = `#!/bin/sh
 set -eu
 set -a
 . /srv/env/${service.name}.env
 set +a
 export PORT="\${PORT:-${service.runtime.port}}"
+${hardcodedExports}
 cd /srv/apps/${service.name}
 ${command}
 `;

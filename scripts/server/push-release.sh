@@ -34,15 +34,15 @@ echo "[push] Packaging ${RELEASE_ID}..."
 COPYFILE_DISABLE=1 tar -czf "${TARBALL}" -C "${RELEASE_DIR}" .
 
 echo "[push] Uploading tarball to ${SERVER}:${REMOTE_INCOMING}/${RELEASE_ID}.tar.gz"
-ssh "${SERVER}" "mkdir -p ${REMOTE_INCOMING}"
-scp "${TARBALL}" "${SERVER}:${REMOTE_INCOMING}/${RELEASE_ID}.tar.gz"
+ssh -4 "${SERVER}" "mkdir -p ${REMOTE_INCOMING}"
+scp -O -4 "${TARBALL}" "${SERVER}:${REMOTE_INCOMING}/${RELEASE_ID}.tar.gz"
 
 echo "[push] Uploading deploy script..."
-scp "${DEPLOY_SCRIPT}" "${SERVER}:/tmp/deploy-on-server.sh"
-ssh "${SERVER}" "chmod +x /tmp/deploy-on-server.sh"
+scp -O -4 "${DEPLOY_SCRIPT}" "${SERVER}:/tmp/deploy-on-server.sh"
+ssh -4 "${SERVER}" "chmod +x /tmp/deploy-on-server.sh"
 
 echo "[push] Running deploy on server..."
-ssh "${SERVER}" "sudo /tmp/deploy-on-server.sh ${RELEASE_ID}"
+ssh -4 "${SERVER}" "sudo /tmp/deploy-on-server.sh ${RELEASE_ID}"
 
 rm -f "${TARBALL}"
 echo "[push] Complete. Release ${RELEASE_ID} is live."
