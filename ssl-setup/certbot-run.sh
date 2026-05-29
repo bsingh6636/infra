@@ -177,7 +177,7 @@ get_hosts_for_root() {
   _node_stack "
 const all = (raw.ingress ?? []).flatMap(e => (e.hosts ?? []).map(h => h.name)).filter(Boolean);
 const matched = [...new Set(all)].filter(h => h === '${root_domain}' || h.endsWith('.${root_domain}')).sort();
-process.stdout.write(matched.join('\n') + '\n');
+if (matched.length > 0) process.stdout.write(matched.join('\n') + '\n');
 "
 }
 
