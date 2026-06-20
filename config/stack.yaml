@@ -50,10 +50,10 @@ sources:
     ref: main
   municipal_backend:
     repo: git@github.com:codesujan01/Municipal-Backend.git
-    ref: training22
+    ref: boldpatra
   municipal_admin:
     repo: git@github.com:codesujan01/Municipal-admin-web.git
-    ref: training22
+    ref: boldpatra
 
 groups:
   low-node:

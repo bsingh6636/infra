@@ -9,6 +9,7 @@ This folder is the current documentation set for the new infra workflow.
 
 ## Focused Guides
 
+- [`OPERATIONS.md`](./OPERATIONS.md) — day-to-day cheat sheet: logs, PM2, restarts, diagnostics
 - [`SERVICE_MANAGEMENT.md`](./SERVICE_MANAGEMENT.md) — how to add, update, disable, remove, and move services
 - [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md) — release snapshots, apply, rollback
 - [`MEDIA_STORAGE.md`](./MEDIA_STORAGE.md) — safe handling of `municipal-api` media storage
