@@ -35,6 +35,42 @@ function renderErrorPages() {
   ];
 }
 
+function renderSecurityHeaders({ includeHsts = false } = {}) {
+  // Security response headers. Placed at server level; nginx inherits add_header
+  // into nested locations only when those locations declare no add_header of
+  // their own (none of ours do), so this covers every route in the block.
+  const lines = [];
+
+  if (includeHsts) {
+    // HSTS only on TLS responses; meaningless (and ignored by browsers) over HTTP.
+    // Ramp deliberately: start at 5 minutes with NO includeSubDomains/preload so
+    // the commitment stays easy to reverse. Raise to 86400, then 31536000, and
+    // only add includeSubDomains/preload once every subdomain is confirmed on
+    // healthy HTTPS — those two flags are effectively irreversible for ~1 year.
+    lines.push('add_header Strict-Transport-Security "max-age=300" always;');
+  }
+
+  lines.push(
+    'add_header X-Content-Type-Options "nosniff" always;',
+    'add_header X-Frame-Options "DENY" always;',
+    'add_header Referrer-Policy "strict-origin-when-cross-origin" always;',
+    'add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;',
+  );
+
+  // CSP is shipped in Report-Only first so it cannot break the SPA, Telegram
+  // login, or remote images. Review violation reports, then promote to an
+  // enforcing Content-Security-Policy header once the policy is proven clean.
+  lines.push(
+    "add_header Content-Security-Policy-Report-Only \"default-src 'self'; " +
+      "script-src 'self' https://telegram.org https://*.telegram.org; " +
+      "frame-src https://oauth.telegram.org; img-src 'self' data: https:; " +
+      "style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; " +
+      'base-uri \'self\'; frame-ancestors \'none\'" always;',
+  );
+
+  return lines;
+}
+
 function renderProxyHeaders() {
   return [
     "proxy_set_header Host $host;",
@@ -110,6 +146,8 @@ function renderServerBlock(stack, entry) {
     ...indent(["listen 80;", `server_name ${entry.hosts.map((host) => host.name).join(" ")};`]),
     "",
     ...indent(["client_max_body_size 25m;",  ""]),
+    ...indent(renderSecurityHeaders({ includeHsts: false })),
+    "",
     ...indent(renderErrorPages()),
   ];
 
@@ -197,6 +235,8 @@ function renderTlsServerBlock(stack, entry) {
         "",
         "client_max_body_size 25m;",
         "",
+        ...renderSecurityHeaders({ includeHsts: true }),
+        "",
       ]),
       ...indent(renderErrorPages()),
     ];
@@ -245,6 +285,9 @@ export function renderReleaseNginx(stack, options = {}) {
 
   const lines = [
     headerComment,
+    "",
+    "# Suppress the nginx version in the Server header to avoid CVE fingerprinting.",
+    "server_tokens off;",
     "",
     "map $http_upgrade $connection_upgrade {",
     "    default upgrade;",

@@ -62,6 +62,27 @@ fi
 echo "[deploy] Starting release ${RELEASE_ID}..."
 docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-orphans --pull never
 
+# ── Validate nginx config before committing the release ─────────────────────
+# Runs `nginx -t` inside the freshly-started nginx container. Upstream service
+# names resolve here because the whole stack is already up on the compose
+# network. A non-zero result also covers the case where a broken config stops
+# nginx from starting at all (exec fails on a non-running container). On failure
+# we restore the previous release so a bad config can never leave the edge down.
+echo "[deploy] Validating nginx configuration (nginx -t)..."
+if ! docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" exec -T nginx nginx -t; then
+  echo "[error] nginx config validation failed for release ${RELEASE_ID}." >&2
+  if [[ -n "${PREV_RELEASE:-}" && -f "${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml" ]]; then
+    echo "[error] Rolling back to previous release: ${PREV_RELEASE}" >&2
+    docker compose -p "${PROJECT_NAME}" -f "${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml" \
+      up -d --remove-orphans --pull never
+    echo "[error] Rolled back. 'current' symlink left untouched at ${PREV_RELEASE}." >&2
+  else
+    echo "[error] No previous release to roll back to — edge may be down. Fix the config and redeploy." >&2
+  fi
+  exit 1
+fi
+echo "[deploy] nginx config OK."
+
 # ── Flip the current symlink ────────────────────────────────────────────────
 RELATIVE_TARGET="releases/${RELEASE_ID}"
 rm -f "${CURRENT_LINK}"
