@@ -9,6 +9,7 @@ import { runHostnameLintCheck } from "./checks/hostname-lint.mjs";
 import { runPortsCheck } from "./checks/ports.mjs";
 import { runRequiredEnvCheck } from "./checks/required-env.mjs";
 import { runRouteConflictsCheck } from "./checks/route-conflicts.mjs";
+import { runServiceModesCheck } from "./checks/service-modes.mjs";
 import { runServiceRefsCheck } from "./checks/service-refs.mjs";
 import { runSourceRemoteCheck } from "./checks/source-remote.mjs";
 import { runSourceSchemaCheck } from "./checks/source-schema.mjs";
@@ -64,6 +65,7 @@ async function main() {
 
   const checks = [
     runSourceSchemaCheck,
+    runServiceModesCheck,
     runServiceRefsCheck,
     runDuplicateHostsCheck,
     runRouteConflictsCheck,

@@ -71,6 +71,14 @@ https://download.docker.com/linux/${DOCKER_DISTRO} ${DOCKER_CODENAME} stable" \
   ok "Docker installed: $(docker --version)"
 fi
 
+# ── Docker group ─────────────────────────────────────────────────────────────
+DEPLOY_USER="${SUDO_USER:-ubuntu}"
+if id "${DEPLOY_USER}" &>/dev/null && ! groups "${DEPLOY_USER}" | grep -qw docker; then
+  info "Adding ${DEPLOY_USER} to docker group..."
+  usermod -aG docker "${DEPLOY_USER}"
+  ok "${DEPLOY_USER} added to docker group (re-login required to take effect)"
+fi
+
 # ── Docker Compose (plugin check) ────────────────────────────────────────────
 if docker compose version &>/dev/null; then
   ok "Docker Compose plugin: $(docker compose version)"
@@ -120,10 +128,12 @@ mkdir -p \
   "${INFRA_ROOT}/releases" \
   "${INFRA_ROOT}/incoming" \
   "${INFRA_ROOT}/data/municipal/media" \
+  "${INFRA_ROOT}/data/redis" \
   "${INFRA_ROOT}/ssl-setup" \
   "${INFRA_ROOT}/config"
 
 chmod 775 "${INFRA_ROOT}/data/municipal/media"
+chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${INFRA_ROOT}"
 
 ok "Directory structure ready under ${INFRA_ROOT}"
 

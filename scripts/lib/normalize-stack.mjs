@@ -48,6 +48,12 @@ function normalizeService(name, service) {
     name,
     enabled: objectService.enabled !== false,
     kind: objectService.kind ?? "",
+    image: typeof objectService.image === "string" ? objectService.image : "",
+    command: Array.isArray(objectService.command) || typeof objectService.command === "string"
+      ? objectService.command
+      : null,
+    depends_on: asArray(objectService.depends_on),
+    resources: asObject(objectService.resources),
     source: {
       key: objectService.source?.key ?? "",
       context: objectService.source?.context ?? "",

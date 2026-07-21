@@ -133,7 +133,7 @@ async function main() {
     "up",
     "-d",
     "--remove-orphans",
-    "--pull", "never",
+    "--pull", "missing",
   ]);
 
   await updateCurrentReleaseSymlink(layout, releaseDirectory);

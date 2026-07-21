@@ -353,6 +353,38 @@ CMD ["node", "/srv/app/server.mjs"]
   await writeFile(path.join(contextDirectory, "Dockerfile"), dockerfile, "utf8");
 }
 
+async function writeRepoDockerfileContext(stack, service, checkoutRoot, contextDirectory) {
+  const source = stack.sources[service.source.key];
+  const checkoutPath = path.join(checkoutRoot, service.name);
+  const projectDirectory = getProjectDirectory(checkoutPath, service);
+
+  await ensureEmptyDirectory(checkoutPath);
+  await cloneRepo(source, checkoutPath);
+
+  if (!(await pathExists(projectDirectory))) {
+    throw new Error(
+      `Source context "${service.source.context}" was not found for ${service.name}.`,
+    );
+  }
+
+  const dockerfileRelative = service.build.dockerfile || "Dockerfile";
+  const dockerfilePath = path.resolve(projectDirectory, dockerfileRelative);
+
+  if (!(await pathExists(dockerfilePath))) {
+    throw new Error(
+      `build.strategy=dockerfile requires "${dockerfileRelative}" in the source context for ${service.name}.`,
+    );
+  }
+
+  await copyDirectoryContents(projectDirectory, contextDirectory);
+
+  // Normalize a custom dockerfile path to the context root so downstream
+  // builds never need -f plumbing.
+  if (dockerfileRelative !== "Dockerfile") {
+    await cp(dockerfilePath, path.join(contextDirectory, "Dockerfile"));
+  }
+}
+
 async function writeRealBackendContext(stack, service, checkoutRoot, contextDirectory) {
   const source = stack.sources[service.source.key];
   const checkoutPath = path.join(checkoutRoot, service.name);
@@ -440,6 +472,8 @@ export async function buildIsolatedPreviewServices(stack, options = {}) {
         }
       } else if (stub) {
         await writeStubBackendContext(contextDirectory, service);
+      } else if (service.build.strategy === "dockerfile") {
+        await writeRepoDockerfileContext(stack, service, checkoutRoot, contextDirectory);
       } else {
         await writeRealBackendContext(stack, service, checkoutRoot, contextDirectory);
       }

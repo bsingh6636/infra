@@ -1,7 +1,7 @@
 # Operations — Logs, Status, Debugging
 
 Day-to-day "where do I check X on the live server" cheat sheet.
-SSH in first: `ssh gcp`
+SSH in first: `ssh aws` (or whatever alias/host you have configured for the production server — see `SERVER` in `.env`)
 
 ---
 
@@ -82,7 +82,7 @@ PM2 logs are written inside the container under `/root/.pm2/logs/<service>-out.l
 ### Compose-style logs (whole stack)
 
 ```bash
-COMPOSE=/opt/brijesh-infra/live/current/compose.yaml
+COMPOSE=/opt/brijesh-infra/current/compose.yaml
 
 # Live tail everything
 docker compose -p brijesh-infra -f $COMPOSE logs -f
@@ -180,8 +180,10 @@ Example — only municipal backend + frontend changed:
 npm run build:edge-static -- --service municipal-admin
 npm run build:shared-node-preview                                # full shared-node rebuild
 npm run release:publish:prod
-./scripts/server/push-release.sh 20260531-143203 brijeshkumarkushwaha@34.131.236.177
+./scripts/server/push-release.sh 20260531-143203 ubuntu@SERVER_IP
 ```
+
+Or the one-command shortcut: `npm run server:ship` (publish + push + deploy in one shot). See [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md).
 
 With the rolling-restart logic in `deploy-on-server.sh`, only containers whose image content actually changed will restart — so other services keep running.
 
@@ -191,8 +193,8 @@ With the rolling-restart logic in `deploy-on-server.sh`, only containers whose i
 
 ```bash
 # Which release is live?
-ls -la /opt/brijesh-infra/live/current
-cat /opt/brijesh-infra/live/current/release.lock.yaml | head -10
+ls -la /opt/brijesh-infra/current
+cat /opt/brijesh-infra/current/release.lock.yaml | head -10
 
 # Available releases (for rollback)
 ls -1t /opt/brijesh-infra/releases/
@@ -262,7 +264,7 @@ When something is returning 502 / not responding:
 5. **Is the service listening on the right port?**
    `docker exec ... ss -tlnp`
 6. **Is nginx routing to the right place?**
-   `grep proxy_pass /opt/brijesh-infra/live/current/nginx.conf`
+   `grep proxy_pass /opt/brijesh-infra/current/nginx.conf`
 7. **Can the edge container reach the upstream?**
    `docker exec brijesh-infra-edge-1 wget -qO- http://shared-low-node:4303/`
 
@@ -273,5 +275,5 @@ When something is returning 502 / not responding:
 ```bash
 # Tail everything for 30 seconds and look for the problem
 timeout 30 docker compose -p brijesh-infra \
-  -f /opt/brijesh-infra/live/current/compose.yaml logs -f
+  -f /opt/brijesh-infra/current/compose.yaml logs -f
 ```

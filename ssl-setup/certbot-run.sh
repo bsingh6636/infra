@@ -230,6 +230,13 @@ run_certbot() {
   if [[ "${FORCE_RENEW}" == "true" ]]; then extra_flags+=("--force-renewal"); fi
   if [[ "${DRY_RUN}" == "true" ]]; then extra_flags+=("--dry-run"); fi
 
+  # --no-lock allows parallel runs; added in certbot 1.10.0.
+  # Detect support once (cached in CERTBOT_NO_LOCK_FLAG) rather than per-call.
+  local lock_flag=()
+  if [[ "${CERTBOT_SUPPORTS_NO_LOCK:-}" == "yes" ]]; then
+    lock_flag=("--no-lock")
+  fi
+
   certbot certonly \
     --dns-cloudflare \
     --dns-cloudflare-credentials "${CF_CRED_FILE}" \
@@ -239,6 +246,7 @@ run_certbot() {
     --email "${EMAIL}" \
     --cert-name "${cert_name}" \
     --expand \
+    "${lock_flag[@]}" \
     "${domain_args[@]}" \
     "${extra_flags[@]}" \
     2>&1
@@ -256,6 +264,16 @@ reload_nginx() {
 ensure_certbot
 setup_cf_credentials
 
+# Detect --no-lock support (added in certbot 1.10.0).
+# Exported so run_certbot() can read it without re-checking every call.
+if certbot --help certonly 2>&1 | grep -q -- '--no-lock'; then
+  export CERTBOT_SUPPORTS_NO_LOCK=yes
+  info "--no-lock supported — parallel cert issuance enabled"
+else
+  export CERTBOT_SUPPORTS_NO_LOCK=no
+  warn "--no-lock not supported by this certbot version — grouped mode will run sequentially"
+fi
+
 if [[ "${DRY_RUN}" == "true" ]]; then warn "DRY-RUN mode — no certs will be issued."; fi
 if [[ "${FORCE_ALL}" == "true" ]]; then warn "FORCE-ALL mode — all certs re-issued regardless of expiry."
 elif [[ "${FORCE_RENEW}" == "true" ]]; then warn "FORCE-RENEW mode — expiring certs will be re-issued."; fi
@@ -265,6 +283,10 @@ echo ""
 SUCCEEDED=()
 FAILED=()
 SKIPPED=()   # "label:days" pairs
+
+# Temp dir for parallel result files; cleaned up on exit.
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
 
 # ── Helper: process one cert unit (cert_name + list of domains) ──────────────
 process_cert() {
@@ -297,6 +319,18 @@ process_cert() {
 
   if [[ ${exit_code} -eq 0 ]]; then
     ok "Issued/renewed: ${cert_name}"
+    # Certbot creates <name>-0001, -0002, etc. when stale metadata exists from a
+    # previous failed or renamed attempt. Find the latest numbered variant and
+    # symlink it to the canonical name so nginx paths stay stable.
+    if [[ ! -L "/etc/letsencrypt/live/${cert_name}" ]]; then
+      local latest_variant
+      latest_variant="$(ls -d "/etc/letsencrypt/live/${cert_name}"-[0-9]* 2>/dev/null | sort -V | tail -1 || true)"
+      if [[ -n "${latest_variant}" ]]; then
+        rm -rf "/etc/letsencrypt/live/${cert_name}"
+        ln -s "${latest_variant}" "/etc/letsencrypt/live/${cert_name}"
+        info "Symlinked $(basename "${latest_variant}") → ${cert_name} (stale metadata workaround)"
+      fi
+    fi
     SUCCEEDED+=("${label}")
   else
     fail "Failed: ${cert_name}"
@@ -306,7 +340,83 @@ process_cert() {
   echo ""
 }
 
-# ── Grouped mode: one cert per root domain ────────────────────────────────────
+# ── Background variant: runs process_cert in a subshell, buffers output ───────
+# Writes result to ${WORK_DIR}/<cert_name>.{log,result} then exits.
+# The main process calls collect_parallel_results after wait.
+process_cert_bg() {
+  local cert_name="$1"
+  shift
+  local domains=("$@")
+  local log_file="${WORK_DIR}/${cert_name}.log"
+  local result_file="${WORK_DIR}/${cert_name}.result"
+
+  (
+    # Do NOT inherit the parent's EXIT trap — if we did, each background job
+    # would delete WORK_DIR when it exits, corrupting the other jobs' results.
+    trap - EXIT
+
+    {
+      echo "────────────────────────────────────────"
+      info "Cert: ${cert_name}  (${#domains[@]} domain(s): ${domains[*]})"
+
+      if [[ "${FORCE_RENEW}" == "false" && "${DRY_RUN}" == "false" ]]; then
+        local days
+        days="$(cert_days_remaining "${cert_name}")"
+        if [[ "${days}" -gt "${SKIP_DAYS}" ]]; then
+          warn "Skipping — cert valid for ${days} more days. Use --renew or --force-all to override."
+          echo "skip:${days}" > "${result_file}"
+          exit 0
+        elif [[ "${days}" -ge 0 ]]; then
+          info "Cert expires in ${days} days — renewing."
+        else
+          info "No existing cert found — issuing."
+        fi
+      fi
+
+      set +e
+      local output exit_code
+      output="$(run_certbot "${cert_name}" "${domains[@]}" 2>&1)"
+      exit_code=$?
+      set -e
+
+      if [[ ${exit_code} -eq 0 ]]; then
+        ok "Issued/renewed: ${cert_name}"
+        echo "ok" > "${result_file}"
+      else
+        fail "Failed: ${cert_name}"
+        echo "${output}" | tail -10
+        echo "fail" > "${result_file}"
+      fi
+      echo ""
+    } > "${log_file}" 2>&1
+    exit 0   # subshell always exits 0; failures are recorded in result_file
+  ) &
+}
+
+# ── After wait: print buffered logs in order and populate result arrays ───────
+collect_parallel_results() {
+  local cert_names=("$@")
+  for cert_name in "${cert_names[@]}"; do
+    local log_file="${WORK_DIR}/${cert_name}.log"
+    local result_file="${WORK_DIR}/${cert_name}.result"
+
+    [[ -f "${log_file}" ]] && cat "${log_file}"
+
+    if [[ ! -f "${result_file}" ]]; then
+      FAILED+=("${cert_name}")
+      continue
+    fi
+    local result
+    result="$(cat "${result_file}")"
+    case "${result}" in
+      ok)        SUCCEEDED+=("${cert_name}") ;;
+      fail)      FAILED+=("${cert_name}") ;;
+      skip:*)    SKIPPED+=("${cert_name}:${result#skip:}") ;;
+    esac
+  done
+}
+
+# ── Grouped mode: one cert per root domain (parallel) ────────────────────────
 if [[ "${GROUPED}" == "true" && -z "${SINGLE_DOMAIN}" ]]; then
   mapfile -t ROOT_DOMAINS < <(read_root_domains)
 
@@ -314,9 +424,10 @@ if [[ "${GROUPED}" == "true" && -z "${SINGLE_DOMAIN}" ]]; then
     echo "[error] No root domains found in tls.root_domains in stack.yaml." >&2; exit 1
   fi
 
-  info "Grouped mode — ${#ROOT_DOMAINS[@]} root domain(s): ${ROOT_DOMAINS[*]}"
+  info "Grouped mode — ${#ROOT_DOMAINS[@]} root domain(s): ${ROOT_DOMAINS[*]} (parallel)"
   echo ""
 
+  CERT_NAMES=()
   for root in "${ROOT_DOMAINS[@]}"; do
     cert_name="$(get_cert_name_for_root "${root}")"
     mapfile -t hosts < <(get_hosts_for_root "${root}")
@@ -326,8 +437,25 @@ if [[ "${GROUPED}" == "true" && -z "${SINGLE_DOMAIN}" ]]; then
       continue
     fi
 
-    process_cert "${cert_name}" "${hosts[@]}"
+    CERT_NAMES+=("${cert_name}")
+
+    if [[ "${CERTBOT_SUPPORTS_NO_LOCK}" == "yes" ]]; then
+      process_cert_bg "${cert_name}" "${hosts[@]}"
+    else
+      process_cert "${cert_name}" "${hosts[@]}"
+    fi
   done
+
+  if [[ "${CERTBOT_SUPPORTS_NO_LOCK}" == "yes" ]]; then
+    info "Waiting for ${#CERT_NAMES[@]} cert job(s) to finish..."
+    # set +e so a non-zero exit from any job doesn't abort the script before
+    # collect_parallel_results runs and prints the full summary.
+    set +e
+    wait
+    set -e
+    echo ""
+    collect_parallel_results "${CERT_NAMES[@]}"
+  fi
 
 # ── Single domain mode ────────────────────────────────────────────────────────
 elif [[ -n "${SINGLE_DOMAIN}" ]]; then

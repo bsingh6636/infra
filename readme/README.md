@@ -63,6 +63,32 @@ To add a new root domain:
 - Server scripts: [`../scripts/server/`](../scripts/server)
 - Local release runtime: [`../generated/runtime-state/`](../generated/runtime-state)
 
+## Human Actions
+
+Almost everything else in this repo is scripted — validation, builds, previews, releases, deploys,
+and cert issuance are all `npm run ...` commands (see `MASTER_GUIDE.md`, or
+[`../CLAUDE.md`](../CLAUDE.md) for the exhaustive AI-facing command reference). This section lists
+only what still genuinely requires a human — access to a dashboard the CLI can't reach, a judgment
+call, or something outside this repo entirely. If it's not here, there's a script for it.
+
+**One-time / occasional, outside this repo:**
+- **Cloudflare dashboard** — create/update DNS records for any new domain or subdomain before running cert issuance. `npm run ssl:generate-domains` only syncs local nginx config from `stack.yaml`; it does not touch DNS.
+- **Infisical dashboard** — add or rotate secret/non-secret values at the project's root `/` path. `npm run infisical:pull:*` only pulls what's already there.
+- **AWS Console** — confirm the EC2 security group allows inbound 80/443 (and 22 from your IP) before a first deploy or after provisioning a new server.
+- **SSH key access** — provision your key to the server before any server script (`server:ship`, `server:deploy`, `server:bootstrap`) will work.
+
+**Judgment calls (mechanism is scripted, human decides when/whether):**
+- Triggering a production deploy (`npm run server:ship`) — nothing gates this.
+- Rollback — deciding a release is bad enough to roll back; the mechanism (`rollback-on-server.sh`) is scripted.
+- Force-reissuing certs (`ssl:certbot:force-all`) — only for a specific reason; routine renewal (`ssl:certbot:renew`) handles the normal case.
+- Deleting a service (`SERVICE_MANAGEMENT.md` → "Remove A Service") — steps are scripted, confirming nothing still depends on it is on you.
+
+**Periodic checks (no automation yet — see `STATUS_AND_DEFERRED.md` → Deferred):**
+- Watch for SSL cert renewal failures — `certbot-run.sh --renew` isn't on a cron yet.
+- Watch disk usage on the server — old releases aren't pruned automatically (`release_retention: 10` in `stack.yaml` is descriptive, not enforced).
+- Spot-check `docker stats` / container health after a deploy — no automated alerting exists.
+- Verify `municipal-api` media backups actually restore, per `MEDIA_STORAGE.md` — the backup command is scripted, restoration is not verified automatically.
+
 ## Important Note
 
 `../ssl-setup/setup-ssl.sh` is the old script and is no longer the primary tool. Use `ssl-setup/certbot-run.sh` instead. The old `../docs/` folder was removed. Use this `readme/` folder for the new system.

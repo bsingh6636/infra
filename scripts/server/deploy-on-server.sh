@@ -31,8 +31,21 @@ COMPOSE_FILE="${RELEASE_DIR}/compose.yaml"
 echo "[deploy] Release: ${RELEASE_ID}"
 
 # ── Bootstrap directories ───────────────────────────────────────────────────
-mkdir -p "${RELEASES_DIR}" "${INCOMING_DIR}" "${DATA_ROOT}/municipal/media"
-chmod 775 "${DATA_ROOT}/municipal/media"
+mkdir -p "${RELEASES_DIR}" "${INCOMING_DIR}" \
+  "${DATA_ROOT}/municipal/media" \
+  "${DATA_ROOT}/siranchowk/media" \
+  "${DATA_ROOT}/redis"
+chmod 775 "${DATA_ROOT}/municipal/media" "${DATA_ROOT}/siranchowk/media"
+
+# ── Reclaim disk before building ────────────────────────────────────────────
+# On-server builds accumulate dead images and build cache every deploy. On the
+# small (~11G) root disk this fills up and the next build dies with ENOSPC. Prune
+# unused images and build cache up front so the build always has room. Only
+# dangling/unreferenced layers are removed — the running stack is never touched.
+echo "[deploy] Reclaiming disk (docker prune)..."
+docker image prune -af >/dev/null 2>&1 || true
+docker builder prune -af >/dev/null 2>&1 || true
+echo "[deploy] Disk after prune: $(df -h / | awk 'NR==2 {print $4" free ("$5" used)"}')"
 
 # ── Expand tarball ──────────────────────────────────────────────────────────
 if [[ ! -d "${RELEASE_DIR}" ]]; then
@@ -60,7 +73,16 @@ if [[ -L "${CURRENT_LINK}" ]]; then
 fi
 
 echo "[deploy] Starting release ${RELEASE_ID}..."
-docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-orphans --pull never
+if [ -d "${RELEASE_DIR}/isolated" ] || [ -d "${RELEASE_DIR}/shared" ]; then
+  # Local build contexts present — build images on server. `--pull missing`
+  # (not `never`) so prebuilt datastore images like redis can be fetched on
+  # first deploy while locally built images are never re-pulled.
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-orphans --pull missing
+else
+  # Registry mode — pull images from Docker Hub then start
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" pull
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --remove-orphans
+fi
 
 # ── Validate nginx config before committing the release ─────────────────────
 # Runs `nginx -t` inside the freshly-started nginx container. Upstream service
@@ -69,12 +91,12 @@ docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-
 # nginx from starting at all (exec fails on a non-running container). On failure
 # we restore the previous release so a bad config can never leave the edge down.
 echo "[deploy] Validating nginx configuration (nginx -t)..."
-if ! docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" exec -T nginx nginx -t; then
+if ! docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" exec -T edge nginx -t; then
   echo "[error] nginx config validation failed for release ${RELEASE_ID}." >&2
   if [[ -n "${PREV_RELEASE:-}" && -f "${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml" ]]; then
     echo "[error] Rolling back to previous release: ${PREV_RELEASE}" >&2
     docker compose -p "${PROJECT_NAME}" -f "${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml" \
-      up -d --remove-orphans --pull never
+      up -d --remove-orphans --pull missing
     echo "[error] Rolled back. 'current' symlink left untouched at ${PREV_RELEASE}." >&2
   else
     echo "[error] No previous release to roll back to — edge may be down. Fix the config and redeploy." >&2

@@ -154,15 +154,32 @@ npm run release:publish:prod -- --release prod-YYYYMMDD-01
 ./scripts/server/push-release.sh prod-YYYYMMDD-01 ubuntu@SERVER_IP
 ```
 
+### One-Command Shortcuts
+
+Two npm scripts wrap the steps above so you don't have to hand-copy the release id:
+
+```bash
+# Publish a new release AND deploy it, in one shot (release id auto-generated as UTC timestamp)
+npm run server:ship             # deploys to the `aws` SSH alias by default
+npm run server:ship -- aws
+npm run server:ship -- ubuntu@1.2.3.4
+
+# Package + deploy a release that was already published (defaults to the latest one)
+npm run server:deploy [-- <release-id>]
+```
+
+`server:deploy` reads the target server from `SERVER=user@host` in `.env` (falls back to erroring if unset). `server:ship` takes the server as a positional arg (default `aws`, an SSH config alias).
+
 The server-side deploy script (`deploy-on-server.sh`) does:
 - expands the tarball under `/opt/brijesh-infra/releases/<id>/`
 - stops the previous stack
 - starts the new stack with `--pull never`
 - flips `/opt/brijesh-infra/current` symlink
 
-For rollback on the server:
+For rollback on the server, `deploy-on-server.sh` is not persisted on the server — copy `rollback-on-server.sh` up first:
 ```bash
-sudo bash /opt/brijesh-infra/scripts/server/rollback-on-server.sh prod-YYYYMMDD-00
+scp scripts/server/rollback-on-server.sh user@server-ip:/tmp/
+ssh user@server-ip "sudo bash /tmp/rollback-on-server.sh prod-YYYYMMDD-00"
 ```
 
 ## What Is Still Deferred

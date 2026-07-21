@@ -1,41 +1,24 @@
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 
-function stripWrappingQuotes(value) {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
-  }
-
-  return value;
-}
+// Quoted values may legitimately span multiple physical lines (e.g. a JSON
+// secret with an embedded PEM key). [^'] / [^"] match newlines too, so the
+// quoted alternatives below consume multi-line values correctly instead of
+// stopping at the first "=" in the blob (which broke on base64 padding).
+const ENV_LINE = /^[ \t]*(?:export[ \t]+)?([\w.-]+)[ \t]*=[ \t]*(?:'((?:\\'|[^'])*)'|"((?:\\"|[^"])*)"|([^#\r\n]*))?[ \t]*(?:#.*)?$/gm;
 
 export function parseEnvContents(contents) {
   const parsed = {};
+  let match;
 
-  for (const rawLine of contents.split(/\r?\n/)) {
-    const line = rawLine.trim();
+  while ((match = ENV_LINE.exec(contents)) !== null) {
+    const [, key, singleQuoted, doubleQuoted, bare] = match;
+    let value;
+    if (singleQuoted !== undefined) value = singleQuoted.replace(/\\'/g, "'");
+    else if (doubleQuoted !== undefined) value = doubleQuoted.replace(/\\"/g, '"');
+    else value = (bare ?? "").trim();
 
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const separatorIndex = line.indexOf("=");
-
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    const key = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim();
-
-    if (!key) {
-      continue;
-    }
-
-    parsed[key] = stripWrappingQuotes(value);
+    parsed[key] = value;
   }
 
   return parsed;

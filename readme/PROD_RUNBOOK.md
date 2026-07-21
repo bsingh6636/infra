@@ -13,7 +13,7 @@ This is the end-to-end guide to go from a clean repo to a live production stack 
 | Infisical CLI installed locally | `infisical --version` |
 | SSH key access to production server | `ssh user@server-ip echo ok` |
 | Cloudflare API token in `.env` as `CLOUDFLARE_API_TOKEN` | `grep CLOUDFLARE .env` |
-| Cloud/Azure Security Group: ports 80 and 443 open | Azure Portal / NSG Check |
+| Cloud Security Group (AWS EC2): ports 80 and 443 open | AWS Console / Security Group inbound rules |
 | All env files present (`env/global.env`, `env/global.secrets.env`, service envs) | `npm run validate` |
 | DNS records for all domains pointing to server IP | Cloudflare dashboard |
 
@@ -360,6 +360,8 @@ grep "letsencrypt" generated/runtime-state/releases/${REL}/compose.yaml
 
 This packages the release, uploads it, SSHes in, and calls `deploy-on-server.sh` automatically.
 
+Steps 1–2 can be replaced with `npm run server:ship` (auto-generates the release id and does publish + push + deploy in one command; see [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md)).
+
 ### Step 3 — Verify from your Mac
 
 ```bash
@@ -384,7 +386,19 @@ curl -si https://admin.municipa.brijeshkushwaha.com.np/ | head -1
 curl -si https://admin.municipa.brijeshkushwaha.com.np/api/ | head -1
 curl -si https://admin.municipa.brijeshkushwaha.com.np/media/ | head -1
 curl -si https://api.muncipal.brijeshkushwaha.com.np/ | head -1
+
+# Other root domains (subsnepal.com and the cors-proxy mirror domains)
+curl -si https://subsnepal.com/ | head -1
+curl -si https://api.subsnepal.com/ | head -1
+curl -si https://portfolio.brijeshdev.space/ | head -1
+curl -si https://cors-proxy.brijeshdev.space/ | head -1
+curl -si https://portfolio.brijeshhq.com/ | head -1
+curl -si https://cors-proxy.brijeshhq.com/ | head -1
+curl -si https://dharche.codifyteam.com/ | head -1
+curl -si https://api-dharche.codifyteam.com/ | head -1
 ```
+
+Check `config/stack.yaml`'s `ingress` and `tls.root_domains` sections for the full current host list — new root domains and hosts get added there over time.
 
 ---
 
@@ -475,10 +489,7 @@ ls -1t /opt/brijesh-infra/releases/
 ## Part 5 — Production Rollback
 
 ```bash
-# From the server
-sudo bash /opt/brijesh-infra/ssl-setup/../scripts/server/rollback-on-server.sh prod-20260419-01
-
-# Or push the script to the server first
+# Push the script to the server, then run it
 scp scripts/server/rollback-on-server.sh user@server-ip:/tmp/
 ssh user@server-ip "sudo bash /tmp/rollback-on-server.sh prod-20260419-01"
 ```

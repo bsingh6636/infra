@@ -29,6 +29,11 @@ export async function runSourceSchemaCheck({ stack }) {
   }
 
   for (const service of stack.services) {
+    // Image-mode services run a prebuilt image and have no source repo.
+    if (service.deploy.mode === "image") {
+      continue;
+    }
+
     if (!service.source.key) {
       result.errors.push(`Service "${service.name}" is missing source.key.`);
       continue;

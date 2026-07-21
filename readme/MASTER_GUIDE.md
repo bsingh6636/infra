@@ -154,6 +154,15 @@ npm run release:publish:prod -- --release prod-YYYYMMDD-01
 ./scripts/server/push-release.sh prod-YYYYMMDD-01 ubuntu@SERVER_IP
 ```
 
+Or, in one command (auto-generates the release id so you don't have to copy it between steps):
+
+```bash
+npm run server:ship               # publish + push + deploy, targets the `aws` SSH alias by default
+npm run server:deploy             # package + deploy the latest already-published release, target read from SERVER in .env
+```
+
+See [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md) for details on both shortcuts.
+
 ### SSL Certificate Management
 
 ```bash
@@ -289,7 +298,7 @@ generated/runtime-state/
 | nginx | HTTP only | HTTP→HTTPS redirect + TLS server blocks |
 | Ports | `8091:80` | `80:80` + `443:443` |
 | Cert mounts | none | `/etc/letsencrypt:ro` + `/var/www/certbot:ro` |
-| Deploy | `release:apply` | `push-release.sh` → `deploy-on-server.sh` |
+| Deploy | `release:apply` | `push-release.sh` → `deploy-on-server.sh` (or `npm run server:ship` / `npm run server:deploy`) |
 
 See [`PROD_RUNBOOK.md`](./PROD_RUNBOOK.md) for the full end-to-end production guide.
 See [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) for current status and deferred items.

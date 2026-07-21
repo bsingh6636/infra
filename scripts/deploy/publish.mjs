@@ -1,6 +1,8 @@
-import { cp, mkdir, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { execSync } from "node:child_process";
 import path from "node:path";
 
+import { mergeServiceEnv } from "../lib/env-merge.mjs";
 import { hashPath } from "../lib/hash.mjs";
 import { loadStack } from "../lib/load-stack.mjs";
 import { normalizeStack } from "../lib/normalize-stack.mjs";
@@ -18,6 +20,7 @@ function parseArgs(argv) {
     stateRoot: defaultRuntimeStateRoot,
     port: 8091,
     tls: false,
+    registry: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -73,6 +76,18 @@ function parseArgs(argv) {
 
     if (arg === "--tls") {
       options.tls = true;
+      continue;
+    }
+
+    if (arg === "--registry") {
+      const nextValue = argv[index + 1];
+
+      if (!nextValue) {
+        throw new Error("--registry requires a Docker Hub username or registry prefix");
+      }
+
+      options.registry = nextValue;
+      index += 1;
       continue;
     }
 
@@ -143,6 +158,39 @@ async function ensureReleaseInputs(stack) {
   }
 }
 
+function dockerBuildAndPush(tag, contextPath) {
+  console.log(`[registry] Building ${tag}...`);
+  execSync(`docker build -t ${tag} ${contextPath}`, { stdio: "inherit" });
+  console.log(`[registry] Pushing ${tag}...`);
+  execSync(`docker push ${tag}`, { stdio: "inherit" });
+}
+
+function pushImagesToRegistry(stack, registry, releaseId) {
+  const isolatedServices = stack.services.filter(
+    (s) => s.enabled && s.deploy.mode === "isolated",
+  );
+
+  for (const service of isolatedServices) {
+    const tag = `${registry}/${service.name}:${releaseId}`;
+    const contextPath = path.join(generatedIsolatedPreviewRoot, "build", service.name);
+    dockerBuildAndPush(tag, contextPath);
+  }
+
+  const groups = [
+    ...new Set(
+      stack.services
+        .filter((s) => s.enabled && s.deploy.mode === "shared-node")
+        .map((s) => s.deploy.group),
+    ),
+  ];
+
+  for (const groupName of groups) {
+    const tag = `${registry}/infra-${groupName}:${releaseId}`;
+    const contextPath = path.join(generatedSharedNodePreviewRoot, "build", groupName);
+    dockerBuildAndPush(tag, contextPath);
+  }
+}
+
 async function copyDirectory(sourcePath, destinationPath) {
   await cp(sourcePath, destinationPath, {
     recursive: true,
@@ -150,10 +198,42 @@ async function copyDirectory(sourcePath, destinationPath) {
   });
 }
 
-async function buildReleasePayload(stack, layout, releaseId, releaseDirectory, port) {
+function serializeEnvValue(value) {
+  const str = String(value ?? "").replace(/\r?\n/g, "\\n");
+  return `'${str.replace(/'/g, "'\\''")}'`;
+}
+
+function serviceDeclaresEnvFiles(service) {
+  return Boolean(service.env.files.nonsecret || service.env.files.secret);
+}
+
+// Image-mode services never pass through the isolated preview build, so their
+// merged env files are produced here at publish time.
+async function writeImageServiceEnvFile(stack, service, releaseDirectory) {
+  const { merged, missingFiles } = await mergeServiceEnv(stack, service);
+
+  if (missingFiles.length > 0) {
+    throw new Error(
+      `Missing env files for ${service.name}: ${missingFiles.map((item) => item.path).join(", ")}`,
+    );
+  }
+
+  const lines = Object.entries(merged)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${serializeEnvValue(value)}`);
+
+  await writeFile(
+    path.join(releaseDirectory, "isolated-env", `${service.name}.env`),
+    `${lines.join("\n")}\n`,
+    "utf8",
+  );
+}
+
+async function buildReleasePayload(stack, layout, releaseId, releaseDirectory, port, registry) {
   const edgeStaticArtifacts = {};
   const isolatedArtifacts = {};
   const sharedArtifacts = {};
+  const imageArtifacts = {};
   const dataMounts = {};
 
   for (const service of stack.services) {
@@ -170,11 +250,9 @@ async function buildReleasePayload(stack, layout, releaseId, releaseDirectory, p
     }
 
     if (service.deploy.mode === "isolated") {
-      const artifactPath = path.join(releaseDirectory, "isolated", service.name);
-      const record = {
-        path: `isolated/${service.name}`,
-        sha256: await hashPath(artifactPath),
-      };
+      const record = registry
+        ? { image: `${registry}/${service.name}:${releaseId}` }
+        : { path: `isolated/${service.name}`, sha256: await hashPath(path.join(releaseDirectory, "isolated", service.name)) };
 
       if (service.kind === "backend") {
         const envPath = path.join(releaseDirectory, "isolated-env", `${service.name}.env`);
@@ -185,15 +263,23 @@ async function buildReleasePayload(stack, layout, releaseId, releaseDirectory, p
       isolatedArtifacts[service.name] = record;
     }
 
-    if (service.deploy.mode === "shared-node") {
-      const artifactPath = path.join(releaseDirectory, "shared", service.deploy.group);
+    if (service.deploy.mode === "image") {
+      const record = { image: service.image };
 
+      if (serviceDeclaresEnvFiles(service)) {
+        const envPath = path.join(releaseDirectory, "isolated-env", `${service.name}.env`);
+        record.env_file = `isolated-env/${service.name}.env`;
+        record.env_sha256 = await hashPath(envPath);
+      }
+
+      imageArtifacts[service.name] = record;
+    }
+
+    if (service.deploy.mode === "shared-node") {
       if (!sharedArtifacts[service.deploy.group]) {
-        sharedArtifacts[service.deploy.group] = {
-          path: `shared/${service.deploy.group}`,
-          sha256: await hashPath(artifactPath),
-          services: [],
-        };
+        sharedArtifacts[service.deploy.group] = registry
+          ? { image: `${registry}/infra-${service.deploy.group}:${releaseId}`, services: [] }
+          : { path: `shared/${service.deploy.group}`, sha256: await hashPath(path.join(releaseDirectory, "shared", service.deploy.group)), services: [] };
       }
 
       sharedArtifacts[service.deploy.group].services.push(service.name);
@@ -218,6 +304,7 @@ async function buildReleasePayload(stack, layout, releaseId, releaseDirectory, p
       edge_static: edgeStaticArtifacts,
       isolated: isolatedArtifacts,
       shared: sharedArtifacts,
+      images: imageArtifacts,
     },
     data_mounts: dataMounts,
     targets: {
@@ -241,11 +328,14 @@ async function main() {
     throw new Error(`Release ${options.releaseId} already exists at ${releaseDirectory}`);
   }
 
+  if (options.registry) {
+    console.log(`[registry] Building and pushing images to ${options.registry}...`);
+    pushImagesToRegistry(stack, options.registry, options.releaseId);
+  }
+
   await mkdir(releaseDirectory, { recursive: true });
   await mkdir(path.join(releaseDirectory, "edge-static"), { recursive: true });
-  await mkdir(path.join(releaseDirectory, "isolated"), { recursive: true });
   await mkdir(path.join(releaseDirectory, "isolated-env"), { recursive: true });
-  await mkdir(path.join(releaseDirectory, "shared"), { recursive: true });
 
   for (const service of stack.services.filter(
     (item) => item.enabled && item.deploy.mode === "edge-static",
@@ -256,34 +346,70 @@ async function main() {
     );
   }
 
-  for (const service of stack.services.filter(
-    (item) => item.enabled && item.deploy.mode === "isolated",
-  )) {
-    await copyDirectory(
-      path.join(generatedIsolatedPreviewRoot, "build", service.name),
-      path.join(releaseDirectory, "isolated", service.name),
-    );
+  if (!options.registry) {
+    await mkdir(path.join(releaseDirectory, "isolated"), { recursive: true });
+    await mkdir(path.join(releaseDirectory, "shared"), { recursive: true });
 
-    if (service.kind === "backend") {
+    for (const service of stack.services.filter(
+      (item) => item.enabled && item.deploy.mode === "isolated",
+    )) {
       await copyDirectory(
-        path.join(generatedIsolatedPreviewRoot, "env", `${service.name}.env`),
-        path.join(releaseDirectory, "isolated-env", `${service.name}.env`),
+        path.join(generatedIsolatedPreviewRoot, "build", service.name),
+        path.join(releaseDirectory, "isolated", service.name),
+      );
+    }
+
+    const sharedGroups = [
+      ...new Set(
+        stack.services
+          .filter((item) => item.enabled && item.deploy.mode === "shared-node")
+          .map((item) => item.deploy.group),
+      ),
+    ];
+
+    for (const groupName of sharedGroups) {
+      await copyDirectory(
+        path.join(generatedSharedNodePreviewRoot, "build", groupName),
+        path.join(releaseDirectory, "shared", groupName),
       );
     }
   }
 
-  const sharedGroups = [
-    ...new Set(
-      stack.services
-        .filter((item) => item.enabled && item.deploy.mode === "shared-node")
-        .map((item) => item.deploy.group),
-    ),
-  ];
-
-  for (const groupName of sharedGroups) {
+  for (const service of stack.services.filter(
+    (item) => item.enabled && item.deploy.mode === "isolated" && item.kind === "backend",
+  )) {
     await copyDirectory(
-      path.join(generatedSharedNodePreviewRoot, "build", groupName),
-      path.join(releaseDirectory, "shared", groupName),
+      path.join(generatedIsolatedPreviewRoot, "env", `${service.name}.env`),
+      path.join(releaseDirectory, "isolated-env", `${service.name}.env`),
+    );
+  }
+
+  for (const service of stack.services.filter(
+    (item) => item.enabled && item.deploy.mode === "image" && serviceDeclaresEnvFiles(item),
+  )) {
+    await writeImageServiceEnvFile(stack, service, releaseDirectory);
+  }
+
+  // Bundle shared-node env files (nonsecret + secret merged per service).
+  // Infisical secrets and custom vars both land in these files — both are included.
+  await mkdir(path.join(releaseDirectory, "shared-env"), { recursive: true });
+
+  for (const service of stack.services.filter(
+    (item) => item.enabled && item.deploy.mode === "shared-node" && item.kind === "backend",
+  )) {
+    const parts = [];
+    if (service.env?.files?.nonsecret) {
+      const content = await readFile(service.env.files.nonsecret, "utf8").catch(() => "");
+      if (content.trim()) parts.push(content.trimEnd());
+    }
+    if (service.env?.files?.secret) {
+      const content = await readFile(service.env.files.secret, "utf8").catch(() => "");
+      if (content.trim()) parts.push(content.trimEnd());
+    }
+    await writeFile(
+      path.join(releaseDirectory, "shared-env", `${service.name}.env`),
+      parts.join("\n") + "\n",
+      "utf8",
     );
   }
 
@@ -301,6 +427,8 @@ async function main() {
       stateRoot: composeStateRoot,
       port: options.port,
       tls: options.tls,
+      registry: options.registry,
+      releaseId: options.releaseId,
     }),
     "utf8",
   );
@@ -317,6 +445,7 @@ async function main() {
     options.releaseId,
     releaseDirectory,
     options.port,
+    options.registry,
   );
 
   await writeFile(

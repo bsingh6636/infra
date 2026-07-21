@@ -29,6 +29,8 @@
     "preview:shared-node:up": "node scripts/preview/shared-node.mjs up",
     "preview:shared-node:down": "node scripts/preview/shared-node.mjs down",
     "server:bootstrap": "bash -c 'scp scripts/server/bootstrap-server.sh $SERVER:/tmp/bootstrap-server.sh && ssh $SERVER sudo bash /tmp/bootstrap-server.sh'",
+    "server:deploy": "bash scripts/server/deploy.sh",
+    "server:ship": "bash scripts/server/ship.sh",
     "infisical": "infisical",
     "infisical:whoami": "node -e \"try{console.log(JSON.parse(require('fs').readFileSync(require('os').homedir()+'/.infisical/infisical-config.json','utf8')))}catch(e){console.log('not logged in')}\"",
     "infisical:switch": "infisical user switch",
@@ -48,6 +50,7 @@
     "with-secrets": "bash -c 'if [ \"$USE_INFISICAL\" = \"1\" ]; then exec infisical run --env=${INFISICAL_ENV:-development} -- \"$@\"; else exec \"$@\"; fi' --",
     "release:publish": "node scripts/deploy/publish.mjs",
     "release:publish:prod": "node scripts/deploy/publish.mjs --tls --port 80",
+    "release:publish:prod:registry": "node scripts/deploy/publish.mjs --tls --port 80 --registry bsingh6636",
     "release:apply": "node scripts/deploy/apply.mjs",
     "release:rollback": "node scripts/rollback/index.mjs"
   },

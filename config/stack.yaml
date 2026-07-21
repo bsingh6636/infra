@@ -28,6 +28,14 @@ tls:
       mode: wildcard_dns
       dns_provider: cloudflare
       cert_name: brijeshdev.space
+    brijeshhq.com:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: brijeshhq.com
+    codifyteam.com:
+      mode: dns
+      dns_provider: cloudflare
+      cert_name: codifyteam.com
 
 env:
   global_nonsecret: env/global.env
@@ -50,10 +58,13 @@ sources:
     ref: main
   municipal_backend:
     repo: git@github.com:codesujan01/Municipal-Backend.git
-    ref: boldpatra
+    ref: members_fix_migration
   municipal_admin:
     repo: git@github.com:codesujan01/Municipal-admin-web.git
-    ref: boldpatra
+    ref: members_fix_migration
+  otpservice:
+    repo: https://github.com/i-ms75/otpservice.git
+    ref: main
 
 groups:
   low-node:
@@ -152,6 +163,13 @@ services:
       files:
         nonsecret: env/services/subsnepal-web.env
         secret: env/services-secrets/subsnepal-web.env
+      required:
+        - REACT_APP_SUBS_FIREBASE_API_KEY
+        - REACT_APP_SUBS_FIREBASE_AUTH_DOMAIN
+        - REACT_APP_SUBS_FIREBASE_PROJECT_ID
+        - REACT_APP_SUBS_FIREBASE_MESSAGING_SENDER_ID
+        - REACT_APP_SUBS_FIREBASE_APP_ID
+        - REACT_APP_SUBS_FIREBASE_VAPID_KEY
 
   subsnepal-api:
     enabled: true
@@ -168,6 +186,11 @@ services:
       files:
         nonsecret: env/services/subsnepal-api.env
         secret: env/services-secrets/subsnepal-api.env
+      required:
+        - SUBS_FIREBASE_SERVICE_ACCOUNT_B64
+        - SUBS_APP_ORIGIN
+        - SUBS_FRONTEND_URL
+        - SUBS_ADMIN_ORDER_EMAIL
 
   municipal-admin:
     enabled: true
@@ -205,6 +228,103 @@ services:
         source: /opt/brijesh-infra/data/municipal/media
         target: /srv/apps/municipal-api/media
 
+  siranchowk-municipal:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4304
+      start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4304"
+    env:
+      files:
+        nonsecret: env/services/siranchowk-municipal.env
+        secret: env/services-secrets/siranchowk-municipal.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/siranchowk/media
+        target: /srv/apps/siranchowk-municipal/media
+
+  ratnagar-municipal:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4305
+      start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4305"
+    env:
+      files:
+        nonsecret: env/services/ratnagar-municipal.env
+        secret: env/services-secrets/ratnagar-municipal.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/ratnagar/media
+        target: /srv/apps/ratnagar-municipal/media
+
+  redis:
+    enabled: false
+    kind: datastore
+    image: redis:7-alpine
+    deploy:
+      mode: image
+    runtime:
+      port: 6379
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]
+    env:
+      files:
+        secret: env/services-secrets/redis.env
+      required:
+        - REDIS_PASSWORD
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/redis
+        target: /data
+
+  otp-api:
+    enabled: false
+    kind: backend
+    source:
+      key: otpservice
+      context: .
+    build:
+      strategy: dockerfile
+    deploy:
+      mode: isolated
+    runtime:
+      port: 8080
+    resources:
+      memory: 512m
+      cpus: "0.50"
+    # depends_on:
+    #   - redis
+    env:
+      files:
+        nonsecret: env/services/otp-api.env
+        secret: env/services-secrets/otp-api.env
+      required:
+        - SPRING_MAIL_USERNAME
+        - SPRING_MAIL_PASSWORD
+        - SPRING_DATA_REDIS_PASSWORD
+        - PEPPER
+        - APPROVERS
+
 ingress:
   - name: portfolio
     hosts:
@@ -212,6 +332,8 @@ ingress:
       - name: portfolio.brijeshkushwaha.com.np
       - name: brijeshdev.space
       - name: portfolio.brijeshdev.space
+      - name: brijeshhq.com
+      - name: portfolio.brijeshhq.com
     upstream:
       type: static
       service: portfolio-web
@@ -230,6 +352,7 @@ ingress:
       - name: cors-proxy.brijeshkushwaha.com.np
       - name: cors-proxy2.brijeshkushwaha.com.np
       - name: cors-proxy.brijeshdev.space
+      - name: cors-proxy.brijeshhq.com
     upstream:
       type: static
       service: cors-web
@@ -243,6 +366,7 @@ ingress:
     hosts:
       - name: api-cors-proxy.brijeshkushwaha.com.np
       - name: api-cors-proxy.brijeshdev.space
+      - name: api-cors-proxy.brijeshhq.com
     upstream:
       type: proxy
       service: cors-api
@@ -251,6 +375,7 @@ ingress:
     hosts:
       - name: getdata-cors-proxy.brijeshkushwaha.com.np
       - name: getdata-cors-proxy.brijeshdev.space
+      - name: getdata-cors-proxy.brijeshhq.com
     upstream:
       type: proxy
       service: getdata
@@ -260,6 +385,8 @@ ingress:
       - name: subsnepal.brijeshkushwaha.com.np
       - name: subsnepal.com
       - name: www.subsnepal.com
+      - name: subs-local.brijeshdev.space
+      - name: subs-local.brijeshhq.com
     upstream:
       type: proxy
       service: subsnepal-web
@@ -278,14 +405,15 @@ ingress:
     hosts:
       - name: api-subsnepal.brijeshkushwaha.com.np
       - name: api.subsnepal.com
+      - name: api.subs-local.brijeshdev.space
+      - name: api.subs-local.brijeshhq.com
     upstream:
       type: proxy
       service: subsnepal-api
 
   - name: municipal-admin
     hosts:
-      - name: admin.municipa.brijeshkushwaha.com.np
-      - name: admin.municipal.brijeshdev.space
+      - name: dharche.municipal.brijeshkushwaha.com.np
     upstream:
       type: static
       service: municipal-admin
@@ -300,9 +428,82 @@ ingress:
 
   - name: municipal-api
     hosts:
-      - name: api.muncipal.brijeshkushwaha.com.np
-      - name: api.municipal.brijeshdev.space
-        acknowledge_nonstandard: true
+      - name: api-dharche.muncipal.brijeshkushwaha.com.np
     upstream:
       type: proxy
       service: municipal-api
+
+  - name: municipal-admin-codify
+    hosts:
+      - name: dharche.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: municipal-api
+        protocol: http
+      - path: /media/
+        service: municipal-api
+        protocol: http
+
+  - name: municipal-api-codify
+    hosts:
+      - name: api-dharche.codifyteam.com
+    upstream:
+      type: proxy
+      service: municipal-api
+
+  - name: siranchowk-web
+    hosts:
+      - name: siranchowk.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: siranchowk-municipal
+        protocol: http
+      - path: /media/
+        service: siranchowk-municipal
+        protocol: http
+
+  - name: siranchowk-api
+    hosts:
+      - name: api-siranchowk.codifyteam.com
+    upstream:
+      type: proxy
+      service: siranchowk-municipal
+
+  - name: ratnagar-web
+    hosts:
+      - name: ratnagar.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: ratnagar-municipal
+        protocol: http
+      - path: /media/
+        service: ratnagar-municipal
+        protocol: http
+
+  - name: ratnagar-api
+    hosts:
+      - name: api-ratnagar.codifyteam.com
+    upstream:
+      type: proxy
+      service: ratnagar-municipal
+
+  # - name: otp-api
+  #   hosts:
+  #     - name: otp.brijeshkushwaha.com.np
+  #     - name: otp.brijeshdev.space
+  #     - name: otp.brijeshhq.com
+  #   upstream:
+  #     type: proxy
+  #     service: otp-api

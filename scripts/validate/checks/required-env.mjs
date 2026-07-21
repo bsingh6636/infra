@@ -12,7 +12,7 @@ export async function runRequiredEnvCheck({ stack }) {
   const result = buildResult("required-env");
 
   for (const service of stack.services) {
-    if (service.env.required.length === 0) {
+    if (!service.enabled || service.env.required.length === 0) {
       continue;
     }
 

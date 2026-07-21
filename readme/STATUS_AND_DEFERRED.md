@@ -74,6 +74,14 @@
 - `setup-ssl.sh` renewal hooks updated to use new release system (`/opt/brijesh-infra/current/`)
 - `PROD_RUNBOOK.md` — full local test + production deployment + verification guide
 
+### Phase 8 (Multi-Domain + Service Scaffolding)
+
+- additional root domains live: `brijeshdev.space`, `brijeshhq.com`, `codifyteam.com` (alongside `brijeshkushwaha.com.np`, `subsnepal.com`)
+- `scripts/validate/checks/service-modes.mjs` — validates `deploy.mode`/`build.strategy`/`depends_on`/`resources` consistency per service (see [`SERVICE_MANAGEMENT.md`](./SERVICE_MANAGEMENT.md))
+- `otp-api` (Spring Boot, `build.strategy: dockerfile`) and `redis` (datastore, image mode) staged in `stack.yaml` as the reference examples for those service kinds — both currently `enabled: false`, not live
+- `ssl-setup/ensure-fallback-cert.sh` — self-signed fallback cert so nginx can start even when a real cert for a domain hasn't been issued yet (symlinks missing cert paths to a fallback; run before `docker compose up` on the server)
+- one-command deploy shortcuts: `npm run server:ship` (publish + push + deploy) and `npm run server:deploy` (package + deploy latest published release) — see [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md)
+
 ## Deferred
 
 - release pruning automation

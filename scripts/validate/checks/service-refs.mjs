@@ -28,6 +28,12 @@ export async function runServiceRefsCheck({ stack }) {
       );
     }
 
+    if (upstreamService?.deploy.mode === "image") {
+      result.errors.push(
+        `Ingress "${entry.name}" points to image-mode service "${entry.upstream.service}"; datastores must not be exposed via ingress.`,
+      );
+    }
+
     for (const route of entry.routes) {
       const routeService = stack.servicesByName.get(route.service);
 
@@ -41,6 +47,12 @@ export async function runServiceRefsCheck({ stack }) {
       if (!routeService.enabled) {
         result.errors.push(
           `Ingress "${entry.name}" route "${route.path}" references disabled service "${route.service}".`,
+        );
+      }
+
+      if (routeService.deploy.mode === "image") {
+        result.errors.push(
+          `Ingress "${entry.name}" route "${route.path}" targets image-mode service "${route.service}"; datastores must not be exposed via ingress.`,
         );
       }
     }

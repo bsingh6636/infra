@@ -52,7 +52,29 @@ function collectIsolatedServices(stack) {
   );
 }
 
-function buildSharedNodeService(stack, groupName, services, stateRoot) {
+function collectImageServices(stack) {
+  return stack.services.filter(
+    (service) => service.enabled && service.deploy.mode === "image",
+  );
+}
+
+function applyResourceLimits(serviceDefinition, resources) {
+  const limits = {};
+
+  if (resources?.cpus) {
+    limits.cpus = String(resources.cpus);
+  }
+
+  if (resources?.memory) {
+    limits.memory = String(resources.memory);
+  }
+
+  if (Object.keys(limits).length > 0) {
+    serviceDefinition.deploy = { resources: { limits } };
+  }
+}
+
+function buildSharedNodeService(stack, groupName, services, stateRoot, registry, releaseId) {
   const volumes = [];
   const seenVolumes = new Set();
 
@@ -81,12 +103,9 @@ function buildSharedNodeService(stack, groupName, services, stateRoot) {
       .map(String),
   ).sort((left, right) => Number(left) - Number(right));
 
-  const serviceDefinition = {
-    build: {
-      context: `./shared/${groupName}`,
-    },
-    restart: "unless-stopped",
-  };
+  const serviceDefinition = registry
+    ? { image: `${registry}/infra-${groupName}:${releaseId}`, restart: "unless-stopped" }
+    : { build: { context: `./shared/${groupName}` }, restart: "unless-stopped" };
 
   if (exposePorts.length > 0) {
     serviceDefinition.expose = exposePorts;
@@ -96,17 +115,24 @@ function buildSharedNodeService(stack, groupName, services, stateRoot) {
     serviceDefinition.volumes = volumes;
   }
 
+  const envFiles = services
+    .filter((s) => s.kind === "backend")
+    .map((s) => `./shared-env/${s.name}.env`);
+
+  if (envFiles.length > 0) {
+    serviceDefinition.env_file = envFiles;
+  }
+
+  applyResourceLimits(serviceDefinition, stack.groups[groupName]?.resources);
+
   return serviceDefinition;
 }
 
-function buildIsolatedService(stack, service, stateRoot) {
+function buildIsolatedService(stack, service, stateRoot, registry, releaseId) {
   const exposePort = getContainerExposePort(service);
-  const serviceDefinition = {
-    build: {
-      context: `./isolated/${service.name}`,
-    },
-    restart: "unless-stopped",
-  };
+  const serviceDefinition = registry
+    ? { image: `${registry}/${service.name}:${releaseId}`, restart: "unless-stopped" }
+    : { build: { context: `./isolated/${service.name}` }, restart: "unless-stopped" };
 
   if (Number.isInteger(exposePort) && exposePort > 0) {
     serviceDefinition.expose = [String(exposePort)];
@@ -125,6 +151,60 @@ function buildIsolatedService(stack, service, stateRoot) {
       });
   }
 
+  if (service.depends_on.length > 0) {
+    serviceDefinition.depends_on = [...service.depends_on];
+  }
+
+  applyResourceLimits(serviceDefinition, service.resources);
+
+  return serviceDefinition;
+}
+
+// Compose interpolates $VAR in the file itself at parse time. Commands are
+// meant literally (env vars resolve inside the container via env_file), so
+// escape $ as $$ to get them past compose untouched.
+function escapeComposeInterpolation(command) {
+  if (typeof command === "string") {
+    return command.replaceAll("$", "$$$$");
+  }
+
+  return command.map((part) => String(part).replaceAll("$", "$$$$"));
+}
+
+function buildImageService(stack, service, stateRoot) {
+  const serviceDefinition = { image: service.image, restart: "unless-stopped" };
+
+  if (service.command) {
+    serviceDefinition.command = escapeComposeInterpolation(service.command);
+  }
+
+  const exposePort = Number(service.runtime.port);
+
+  if (Number.isInteger(exposePort) && exposePort > 0) {
+    serviceDefinition.expose = [String(exposePort)];
+  }
+
+  if (service.env.files.nonsecret || service.env.files.secret) {
+    serviceDefinition.env_file = [`./isolated-env/${service.name}.env`];
+  }
+
+  const volumes = service.storage
+    .filter((entry) => entry.type === "bind")
+    .map((entry) => {
+      const source = mapStorageSourceToStateRoot(stack, stateRoot, entry.source);
+      return `${source}:${entry.target}`;
+    });
+
+  if (volumes.length > 0) {
+    serviceDefinition.volumes = volumes;
+  }
+
+  if (service.depends_on.length > 0) {
+    serviceDefinition.depends_on = [...service.depends_on];
+  }
+
+  applyResourceLimits(serviceDefinition, service.resources);
+
   return serviceDefinition;
 }
 
@@ -133,9 +213,12 @@ export function renderReleaseCompose(stack, options = {}) {
     stateRoot,
     port = 8091,
     tls = false,
+    registry = null,
+    releaseId = null,
   } = options;
   const sharedNodeServices = collectSharedNodeServices(stack);
   const isolatedServices = collectIsolatedServices(stack);
+  const imageServices = collectImageServices(stack);
   const groupedServices = new Map();
 
   for (const service of sharedNodeServices) {
@@ -175,13 +258,21 @@ export function renderReleaseCompose(stack, options = {}) {
       groupName,
       groupServices,
       stateRoot,
+      registry,
+      releaseId,
     );
   }
 
   for (const service of isolatedServices.sort((left, right) =>
     left.name.localeCompare(right.name),
   )) {
-    services[service.name] = buildIsolatedService(stack, service, stateRoot);
+    services[service.name] = buildIsolatedService(stack, service, stateRoot, registry, releaseId);
+  }
+
+  for (const service of imageServices.sort((left, right) =>
+    left.name.localeCompare(right.name),
+  )) {
+    services[service.name] = buildImageService(stack, service, stateRoot);
   }
 
   return YAML.stringify({ services }, { lineWidth: 0 });
