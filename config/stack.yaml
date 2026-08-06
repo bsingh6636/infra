@@ -36,6 +36,10 @@ tls:
       mode: dns
       dns_provider: cloudflare
       cert_name: codifyteam.com
+    nepalfundme.com:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: nepalfundme.com
 
 env:
   global_nonsecret: env/global.env
@@ -64,6 +68,9 @@ sources:
     ref: members_fix_migration
   otpservice:
     repo: https://github.com/i-ms75/otpservice.git
+    ref: main
+  sahayog:
+    repo: git@github.com:bsingh6636/sahayog-crowdfunding.git
     ref: main
 
 groups:
@@ -182,6 +189,8 @@ services:
     runtime:
       port: 9090
       start: npm start
+    depends_on:
+      - redis
     env:
       files:
         nonsecret: env/services/subsnepal-api.env
@@ -191,6 +200,7 @@ services:
         - SUBS_APP_ORIGIN
         - SUBS_FRONTEND_URL
         - SUBS_ADMIN_ORDER_EMAIL
+        - REDIS_URL
 
   municipal-admin:
     enabled: true
@@ -279,14 +289,17 @@ services:
         target: /srv/apps/ratnagar-municipal/media
 
   redis:
-    enabled: false
+    enabled: true
     kind: datastore
     image: redis:7-alpine
     deploy:
       mode: image
     runtime:
       port: 6379
-    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]
+    # Treated as cache-only soft state: no AOF/RDB persistence, bounded memory,
+    # LRU eviction. Consumers are expected to key-prefix (e.g. "subsnepal:") to
+    # avoid collisions, not to rely on DB index or on data surviving a restart.
+    command: ["sh", "-c", "exec redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly no --save \"\" --requirepass \"$REDIS_PASSWORD\""]
     env:
       files:
         secret: env/services-secrets/redis.env
@@ -324,6 +337,40 @@ services:
         - SPRING_DATA_REDIS_PASSWORD
         - PEPPER
         - APPROVERS
+
+  sahayog-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: sahayog
+      context: client
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  sahayog-api:
+    enabled: true
+    kind: backend
+    source:
+      key: sahayog
+      context: server
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4306
+      start: npm start
+      env:
+        FUNDRAISER_PORT: "4306"
+    env:
+      files:
+        nonsecret: env/services/sahayog-api.env
+        secret: env/services-secrets/sahayog-api.env
+      required:
+        - FUNDRAISER_JWT_SECRET
+        - FUNDRAISER_MONGODB_URI
+        - FUNDRAISER_ADMIN_PASSWORD
 
 ingress:
   - name: portfolio
@@ -498,6 +545,28 @@ ingress:
     upstream:
       type: proxy
       service: ratnagar-municipal
+
+  - name: sahayog-web
+    hosts:
+      - name: nepalfundme.com
+      - name: www.nepalfundme.com
+      - name: fundraiser.brijeshhq.com
+    upstream:
+      type: static
+      service: sahayog-web
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: sahayog-api
+        protocol: http
+
+  - name: sahayog-api
+    hosts:
+      - name: api.nepalfundme.com
+      - name: api-fundraiser.brijeshhq.com
+    upstream:
+      type: proxy
+      service: sahayog-api
 
   # - name: otp-api
   #   hosts:
