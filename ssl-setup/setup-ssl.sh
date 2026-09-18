@@ -27,7 +27,8 @@ fi
 CERT_DIR="/etc/letsencrypt"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 NGINX_CONF_DIR="$PROJECT_ROOT/nginx/conf.d"
-DOCKER_COMPOSE_PROD="$PROJECT_ROOT/docker-compose.prod.yml"
+INFRA_COMPOSE="/opt/brijesh-infra/current/compose.yaml"
+INFRA_PROJECT="brijesh-infra"
 
 # Load CLOUDFLARE_API_TOKEN from project root .env if not set in domains.conf
 if [ -z "$CLOUDFLARE_API_TOKEN" ] && [ -f "$PROJECT_ROOT/.env" ]; then
@@ -199,12 +200,16 @@ install_certbot() {
 
 stop_nginx_container() {
     log_info "Stopping nginx container to free port 80..."
-    docker compose -f "$DOCKER_COMPOSE_PROD" stop nginx 2>/dev/null || true
+    if [ -f "$INFRA_COMPOSE" ]; then
+        docker compose -p "$INFRA_PROJECT" -f "$INFRA_COMPOSE" stop edge 2>/dev/null || true
+    fi
 }
 
 start_nginx_container() {
     log_info "Starting nginx container..."
-    docker compose -f "$DOCKER_COMPOSE_PROD" up -d nginx
+    if [ -f "$INFRA_COMPOSE" ]; then
+        docker compose -p "$INFRA_PROJECT" -f "$INFRA_COMPOSE" up -d edge
+    fi
 }
 
 check_new_domains() {
@@ -306,18 +311,23 @@ obtain_certificates() {
 
 setup_auto_renewal() {
     log_info "Setting up automatic renewal..."
+
+    mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+    mkdir -p /etc/letsencrypt/renewal-hooks/pre
+    mkdir -p /etc/letsencrypt/renewal-hooks/post
     
-    # Create renewal hook script
-    cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << EOF
+    # Reload edge nginx inside running container after renewal (no downtime)
+    cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh << 'EOF'
 #!/bin/bash
-# Reload nginx after certificate renewal
-docker compose -f $DOCKER_COMPOSE_PROD exec nginx nginx -s reload
+INFRA_COMPOSE="/opt/brijesh-infra/current/compose.yaml"
+INFRA_PROJECT="brijesh-infra"
+if [ -f "$INFRA_COMPOSE" ]; then
+    docker compose -p "$INFRA_PROJECT" -f "$INFRA_COMPOSE" exec edge nginx -s reload
+fi
 EOF
-    
-    # No longer need sed replacement as we use the absolute path variable
     chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
     
-    # Test renewal process (stop nginx so certbot can use port 80)
+    # Test renewal process
     stop_nginx_container
     set +e
     certbot renew --dry-run 2>&1
@@ -332,16 +342,24 @@ EOF
     fi
     start_nginx_container
 
-    # Create pre/post hooks so systemd renewal also stops/starts nginx
-    cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh << EOF
+    # Pre/post hooks for standalone renewal fallback
+    cat > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh << 'EOF'
 #!/bin/bash
-docker compose -f $DOCKER_COMPOSE_PROD stop nginx
+INFRA_COMPOSE="/opt/brijesh-infra/current/compose.yaml"
+INFRA_PROJECT="brijesh-infra"
+if [ -f "$INFRA_COMPOSE" ]; then
+    docker compose -p "$INFRA_PROJECT" -f "$INFRA_COMPOSE" stop edge
+fi
 EOF
     chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
 
-    cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh << EOF
+    cat > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh << 'EOF'
 #!/bin/bash
-docker compose -f $DOCKER_COMPOSE_PROD up -d nginx
+INFRA_COMPOSE="/opt/brijesh-infra/current/compose.yaml"
+INFRA_PROJECT="brijesh-infra"
+if [ -f "$INFRA_COMPOSE" ]; then
+    docker compose -p "$INFRA_PROJECT" -f "$INFRA_COMPOSE" up -d edge
+fi
 EOF
     chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
 }

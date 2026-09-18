@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# deploy-on-server.sh
+# Run this ON THE PRODUCTION SERVER to apply a release.
+# Usage:
+#   ./deploy-on-server.sh <release-id>
+#
+# Before the first run:
+#   1. Copy the release tarball to the server:
+#        scp generated/runtime-state/releases/<release-id>.tar.gz  user@server:/opt/brijesh-infra/incoming/
+#   2. SSH into the server and run this script.
+#
+set -euo pipefail
+
+RELEASE_ID="${1:-}"
+INFRA_ROOT="/opt/brijesh-infra"
+RELEASES_DIR="${INFRA_ROOT}/releases"
+INCOMING_DIR="${INFRA_ROOT}/incoming"
+CURRENT_LINK="${INFRA_ROOT}/current"
+DATA_ROOT="${INFRA_ROOT}/data"
+PROJECT_NAME="brijesh-infra"
+
+if [[ -z "${RELEASE_ID}" ]]; then
+  echo "[error] Usage: $0 <release-id>" >&2
+  exit 1
+fi
+
+TARBALL="${INCOMING_DIR}/${RELEASE_ID}.tar.gz"
+RELEASE_DIR="${RELEASES_DIR}/${RELEASE_ID}"
+COMPOSE_FILE="${RELEASE_DIR}/compose.yaml"
+
+echo "[deploy] Release: ${RELEASE_ID}"
+
+# ── Bootstrap directories ───────────────────────────────────────────────────
+mkdir -p "${RELEASES_DIR}" "${INCOMING_DIR}" \
+  "${DATA_ROOT}/municipal/media" \
+  "${DATA_ROOT}/siranchowk/media" \
+  "${DATA_ROOT}/redis"
+chmod 775 "${DATA_ROOT}/municipal/media" "${DATA_ROOT}/siranchowk/media"
+
+# ── Reclaim disk before building ────────────────────────────────────────────
+# On-server builds accumulate dead images and build cache every deploy. On the
+# small (~11G) root disk this fills up and the next build dies with ENOSPC. Prune
+# unused images and build cache up front so the build always has room. Only
+# dangling/unreferenced layers are removed — the running stack is never touched.
+echo "[deploy] Reclaiming disk (docker prune)..."
+docker image prune -af >/dev/null 2>&1 || true
+docker builder prune -af >/dev/null 2>&1 || true
+echo "[deploy] Disk after prune: $(df -h / | awk 'NR==2 {print $4" free ("$5" used)"}')"
+
+# ── Expand tarball ──────────────────────────────────────────────────────────
+if [[ ! -d "${RELEASE_DIR}" ]]; then
+  if [[ ! -f "${TARBALL}" ]]; then
+    echo "[error] Tarball not found: ${TARBALL}" >&2
+    exit 1
+  fi
+
+  echo "[deploy] Expanding ${TARBALL} → ${RELEASE_DIR}"
+  mkdir -p "${RELEASE_DIR}"
+  tar -xzf "${TARBALL}" -C "${RELEASE_DIR}" --strip-components=1
+else
+  echo "[deploy] Release directory already exists, skipping untar."
+fi
+
+if [[ ! -f "${COMPOSE_FILE}" ]]; then
+  echo "[error] compose.yaml not found in release: ${COMPOSE_FILE}" >&2
+  exit 1
+fi
+
+# ── Bring up new stack (only restart changed containers) ───────────────────
+if [[ -L "${CURRENT_LINK}" ]]; then
+  PREV_RELEASE="$(basename "$(readlink -f "${CURRENT_LINK}")")"
+  echo "[deploy] Previous release: ${PREV_RELEASE}"
+fi
+
+echo "[deploy] Starting release ${RELEASE_ID}..."
+if [ -d "${RELEASE_DIR}/isolated" ] || [ -d "${RELEASE_DIR}/shared" ]; then
+  # Local build contexts present — build images on server. `--pull missing`
+  # (not `never`) so prebuilt datastore images like redis can be fetched on
+  # first deploy while locally built images are never re-pulled.
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --build --remove-orphans --pull missing
+else
+  # Registry mode — pull images from Docker Hub then start
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" pull
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --remove-orphans
+fi
+
+# ── Validate nginx config before committing the release ─────────────────────
+# Runs `nginx -t` inside the freshly-started nginx container. Upstream service
+# names resolve here because the whole stack is already up on the compose
+# network. A non-zero result also covers the case where a broken config stops
+# nginx from starting at all (exec fails on a non-running container). On failure
+# we restore the previous release so a bad config can never leave the edge down.
+echo "[deploy] Validating nginx configuration (nginx -t)..."
+if ! docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" exec -T edge nginx -t; then
+  echo "[error] nginx config validation failed for release ${RELEASE_ID}." >&2
+  if [[ -n "${PREV_RELEASE:-}" && -f "${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml" ]]; then
+    echo "[error] Rolling back to previous release: ${PREV_RELEASE}" >&2
+    docker compose -p "${PROJECT_NAME}" -f "${RELEASES_DIR}/${PREV_RELEASE}/compose.yaml" \
+      up -d --remove-orphans --pull missing
+    echo "[error] Rolled back. 'current' symlink left untouched at ${PREV_RELEASE}." >&2
+  else
+    echo "[error] No previous release to roll back to — edge may be down. Fix the config and redeploy." >&2
+  fi
+  exit 1
+fi
+echo "[deploy] nginx config OK."
+
+# ── Flip the current symlink ────────────────────────────────────────────────
+RELATIVE_TARGET="releases/${RELEASE_ID}"
+rm -f "${CURRENT_LINK}"
+ln -s "${RELATIVE_TARGET}" "${CURRENT_LINK}"
+
+echo "[deploy] Done. Current → ${CURRENT_LINK} → ${RELEASE_ID}"
+
+# ── Cleanup incoming tarball ────────────────────────────────────────────────
+rm -f "${TARBALL}"
+echo "[deploy] Removed incoming tarball."

@@ -124,7 +124,7 @@ list_images() {
 
 # Note: Private repositories (like bae-portfolio) MUST use SSH URLs
 # and require your SSH key to be added locally (ssh-add) before building.
-# See docs/PRIVATE_REPO_BUILDS.md for details.
+# See readme/MASTER_GUIDE.md and readme/SERVICE_MANAGEMENT.md for the current workflow details.
 get_context() {
     case $1 in
         nginx) echo "./nginx" ;;

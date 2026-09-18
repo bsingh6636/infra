@@ -1,0 +1,578 @@
+version: 1
+
+project:
+  name: brijesh
+  network: brijesh-net
+  release_root: /opt/brijesh-infra/releases
+  data_root: /opt/brijesh-infra/data
+  live_symlink: /opt/brijesh-infra/live/current
+  release_retention: 10
+
+build:
+  backend_strategy: local-build-push
+  edge_static_strategy: local-build-sync
+  isolated_static_strategy: local-build-image-push
+  image_tag_style: git-sha
+
+tls:
+  root_domains:
+    brijeshkushwaha.com.np:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: cors-proxy.brijeshkushwaha.com.np
+    subsnepal.com:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: subsnepal.com
+    brijeshdev.space:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: brijeshdev.space
+    brijeshhq.com:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: brijeshhq.com
+    codifyteam.com:
+      mode: dns
+      dns_provider: cloudflare
+      cert_name: codifyteam.com
+    nepalfundme.com:
+      mode: wildcard_dns
+      dns_provider: cloudflare
+      cert_name: nepalfundme.com
+
+env:
+  global_nonsecret: env/global.env
+  global_secret: env/global.secrets.env
+  service_nonsecret_dir: env/services
+  service_secret_dir: env/services-secrets
+
+sources:
+  educors:
+    repo: https://github.com/bsingh6636/EduCors-Helper.git
+    ref: master
+  portfolio:
+    repo: https://github.com/bsingh6636/myPortfolio.git
+    ref: main
+  ranju:
+    repo: git@github.com:bsingh6636/cuddly-octo-funicular.git
+    ref: main
+  oasis:
+    repo: git@github.com:bsingh6636/oasisNep.git
+    ref: main
+  municipal_backend:
+    repo: git@github.com:codesujan01/Municipal-Backend.git
+    ref: members_fix_migration
+  municipal_admin:
+    repo: git@github.com:codesujan01/Municipal-admin-web.git
+    ref: members_fix_migration
+  otpservice:
+    repo: https://github.com/i-ms75/otpservice.git
+    ref: main
+  sahayog:
+    repo: git@github.com:bsingh6636/sahayog-crowdfunding.git
+    ref: main
+
+groups:
+  low-node:
+    mode: shared-node
+    runtime: node20
+    process_manager: pm2
+    resources:
+      cpus: "0.50"
+      memory: 512m
+
+services:
+  portfolio-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: portfolio
+      context: .
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  ranju-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: ranju
+      context: .
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  cors-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: educors
+      context: FrontEnd
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  cors-api:
+    enabled: true
+    kind: backend
+    source:
+      key: educors
+      context: BackEnd
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4301
+      start: npm start
+    env:
+      files:
+        nonsecret: env/services/cors-api.env
+        secret: env/services-secrets/cors-api.env
+      required:
+        - JWT_SECRET_KEY
+        - MONGO_SRV
+
+  getdata:
+    enabled: true
+    kind: backend
+    source:
+      key: educors
+      context: getdata
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4302
+      start: npm start
+    env:
+      files:
+        nonsecret: env/services/getdata.env
+        secret: env/services-secrets/getdata.env
+
+  subsnepal-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: oasis
+      context: reactJs
+    build:
+      output_dir: auto
+    deploy:
+      mode: isolated
+      frontend_runtime: static-container
+    runtime:
+      container_port: 80
+    env:
+      files:
+        nonsecret: env/services/subsnepal-web.env
+        secret: env/services-secrets/subsnepal-web.env
+      required:
+        - REACT_APP_SUBS_FIREBASE_API_KEY
+        - REACT_APP_SUBS_FIREBASE_AUTH_DOMAIN
+        - REACT_APP_SUBS_FIREBASE_PROJECT_ID
+        - REACT_APP_SUBS_FIREBASE_MESSAGING_SENDER_ID
+        - REACT_APP_SUBS_FIREBASE_APP_ID
+        - REACT_APP_SUBS_FIREBASE_VAPID_KEY
+
+  subsnepal-api:
+    enabled: true
+    kind: backend
+    source:
+      key: oasis
+      context: nodejs
+    deploy:
+      mode: isolated
+    runtime:
+      port: 9090
+      start: npm start
+    depends_on:
+      - redis
+    env:
+      files:
+        nonsecret: env/services/subsnepal-api.env
+        secret: env/services-secrets/subsnepal-api.env
+      required:
+        - SUBS_FIREBASE_SERVICE_ACCOUNT_B64
+        - SUBS_APP_ORIGIN
+        - SUBS_FRONTEND_URL
+        - SUBS_ADMIN_ORDER_EMAIL
+        - REDIS_URL
+
+  municipal-admin:
+    enabled: true
+    kind: frontend
+    source:
+      key: municipal_admin
+      context: .
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  municipal-api:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4303
+      start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4303"
+    env:
+      files:
+        nonsecret: env/services/municipal-api.env
+        secret: env/services-secrets/municipal-api.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/municipal/media
+        target: /srv/apps/municipal-api/media
+
+  siranchowk-municipal:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4304
+      start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4304"
+    env:
+      files:
+        nonsecret: env/services/siranchowk-municipal.env
+        secret: env/services-secrets/siranchowk-municipal.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/siranchowk/media
+        target: /srv/apps/siranchowk-municipal/media
+
+  ratnagar-municipal:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4305
+      start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4305"
+    env:
+      files:
+        nonsecret: env/services/ratnagar-municipal.env
+        secret: env/services-secrets/ratnagar-municipal.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/ratnagar/media
+        target: /srv/apps/ratnagar-municipal/media
+
+  redis:
+    enabled: true
+    kind: datastore
+    image: redis:7-alpine
+    deploy:
+      mode: image
+    runtime:
+      port: 6379
+    # Treated as cache-only soft state: no AOF/RDB persistence, bounded memory,
+    # LRU eviction. Consumers are expected to key-prefix (e.g. "subsnepal:") to
+    # avoid collisions, not to rely on DB index or on data surviving a restart.
+    command: ["sh", "-c", "exec redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly no --save \"\" --requirepass \"$REDIS_PASSWORD\""]
+    env:
+      files:
+        secret: env/services-secrets/redis.env
+      required:
+        - REDIS_PASSWORD
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/redis
+        target: /data
+
+  otp-api:
+    enabled: false
+    kind: backend
+    source:
+      key: otpservice
+      context: .
+    build:
+      strategy: dockerfile
+    deploy:
+      mode: isolated
+    runtime:
+      port: 8080
+    resources:
+      memory: 512m
+      cpus: "0.50"
+    # depends_on:
+    #   - redis
+    env:
+      files:
+        nonsecret: env/services/otp-api.env
+        secret: env/services-secrets/otp-api.env
+      required:
+        - SPRING_MAIL_USERNAME
+        - SPRING_MAIL_PASSWORD
+        - SPRING_DATA_REDIS_PASSWORD
+        - PEPPER
+        - APPROVERS
+
+  sahayog-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: sahayog
+      context: client
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  sahayog-api:
+    enabled: true
+    kind: backend
+    source:
+      key: sahayog
+      context: server
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4306
+      start: npm start
+      env:
+        FUNDRAISER_PORT: "4306"
+    env:
+      files:
+        nonsecret: env/services/sahayog-api.env
+        secret: env/services-secrets/sahayog-api.env
+      required:
+        - FUNDRAISER_JWT_SECRET
+        - FUNDRAISER_MONGODB_URI
+        - FUNDRAISER_ADMIN_PASSWORD
+
+ingress:
+  - name: portfolio
+    hosts:
+      - name: brijeshkushwaha.com.np
+      - name: portfolio.brijeshkushwaha.com.np
+      - name: brijeshdev.space
+      - name: portfolio.brijeshdev.space
+      - name: brijeshhq.com
+      - name: portfolio.brijeshhq.com
+    upstream:
+      type: static
+      service: portfolio-web
+      spa_fallback: true
+
+  - name: ranju
+    hosts:
+      - name: ranju.brijeshkushwaha.com.np
+    upstream:
+      type: static
+      service: ranju-web
+      spa_fallback: true
+
+  - name: cors-web
+    hosts:
+      - name: cors-proxy.brijeshkushwaha.com.np
+      - name: cors-proxy2.brijeshkushwaha.com.np
+      - name: cors-proxy.brijeshdev.space
+      - name: cors-proxy.brijeshhq.com
+    upstream:
+      type: static
+      service: cors-web
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: cors-api
+        protocol: http
+
+  - name: cors-api
+    hosts:
+      - name: api-cors-proxy.brijeshkushwaha.com.np
+      - name: api-cors-proxy.brijeshdev.space
+      - name: api-cors-proxy.brijeshhq.com
+    upstream:
+      type: proxy
+      service: cors-api
+
+  - name: getdata
+    hosts:
+      - name: getdata-cors-proxy.brijeshkushwaha.com.np
+      - name: getdata-cors-proxy.brijeshdev.space
+      - name: getdata-cors-proxy.brijeshhq.com
+    upstream:
+      type: proxy
+      service: getdata
+
+  - name: subsnepal-web
+    hosts:
+      - name: subsnepal.brijeshkushwaha.com.np
+      - name: subsnepal.com
+      - name: www.subsnepal.com
+      - name: subs-local.brijeshdev.space
+      - name: subs-local.brijeshhq.com
+    upstream:
+      type: proxy
+      service: subsnepal-web
+    routes:
+      - path: /api/
+        service: subsnepal-api
+        protocol: http
+      - path: /ws/
+        service: subsnepal-api
+        protocol: websocket
+      - path: /events/
+        service: subsnepal-api
+        protocol: sse
+
+  - name: subsnepal-api
+    hosts:
+      - name: api-subsnepal.brijeshkushwaha.com.np
+      - name: api.subsnepal.com
+      - name: api.subs-local.brijeshdev.space
+      - name: api.subs-local.brijeshhq.com
+    upstream:
+      type: proxy
+      service: subsnepal-api
+
+  - name: municipal-admin
+    hosts:
+      - name: dharche.municipal.brijeshkushwaha.com.np
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: municipal-api
+        protocol: http
+      - path: /media/
+        service: municipal-api
+        protocol: http
+
+  - name: municipal-api
+    hosts:
+      - name: api-dharche.muncipal.brijeshkushwaha.com.np
+    upstream:
+      type: proxy
+      service: municipal-api
+
+  - name: municipal-admin-codify
+    hosts:
+      - name: dharche.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: municipal-api
+        protocol: http
+      - path: /media/
+        service: municipal-api
+        protocol: http
+
+  - name: municipal-api-codify
+    hosts:
+      - name: api-dharche.codifyteam.com
+    upstream:
+      type: proxy
+      service: municipal-api
+
+  - name: siranchowk-web
+    hosts:
+      - name: siranchowk.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: siranchowk-municipal
+        protocol: http
+      - path: /media/
+        service: siranchowk-municipal
+        protocol: http
+
+  - name: siranchowk-api
+    hosts:
+      - name: api-siranchowk.codifyteam.com
+    upstream:
+      type: proxy
+      service: siranchowk-municipal
+
+  - name: ratnagar-web
+    hosts:
+      - name: ratnagar.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: ratnagar-municipal
+        protocol: http
+      - path: /media/
+        service: ratnagar-municipal
+        protocol: http
+
+  - name: ratnagar-api
+    hosts:
+      - name: api-ratnagar.codifyteam.com
+    upstream:
+      type: proxy
+      service: ratnagar-municipal
+
+  - name: sahayog-web
+    hosts:
+      - name: nepalfundme.com
+      - name: www.nepalfundme.com
+      - name: fundraiser.brijeshhq.com
+    upstream:
+      type: static
+      service: sahayog-web
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: sahayog-api
+        protocol: http
+
+  - name: sahayog-api
+    hosts:
+      - name: api.nepalfundme.com
+      - name: api-fundraiser.brijeshhq.com
+    upstream:
+      type: proxy
+      service: sahayog-api
+
+  # - name: otp-api
+  #   hosts:
+  #     - name: otp.brijeshkushwaha.com.np
+  #     - name: otp.brijeshdev.space
+  #     - name: otp.brijeshhq.com
+  #   upstream:
+  #     type: proxy
+  #     service: otp-api
