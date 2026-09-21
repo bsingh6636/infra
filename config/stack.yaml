@@ -288,6 +288,31 @@ services:
         source: /opt/brijesh-infra/data/ratnagar/media
         target: /srv/apps/ratnagar-municipal/media
 
+  madhyabindu-municipal:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4307
+      start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4307"
+    env:
+      files:
+        nonsecret: env/services/madhyabindu-municipal.env
+        secret: env/services-secrets/madhyabindu-municipal.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/madhyabindu/media
+        target: /srv/apps/madhyabindu-municipal/media
+
   redis:
     enabled: true
     kind: datastore
@@ -545,6 +570,28 @@ ingress:
     upstream:
       type: proxy
       service: ratnagar-municipal
+
+  - name: madhyabindu-web
+    hosts:
+      - name: madhyabindumun.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: madhyabindu-municipal
+        protocol: http
+      - path: /media/
+        service: madhyabindu-municipal
+        protocol: http
+
+  - name: madhyabindu-api
+    hosts:
+      - name: api-madhyabindumun.codifyteam.com
+    upstream:
+      type: proxy
+      service: madhyabindu-municipal
 
   - name: sahayog-web
     hosts:
