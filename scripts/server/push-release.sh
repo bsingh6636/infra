@@ -12,8 +12,10 @@ set -euo pipefail
 RELEASE_ID="${1:-}"
 SERVER="${2:-}"
 
+TARGET_SERVICES="${3:-}"
+
 if [[ -z "${RELEASE_ID}" || -z "${SERVER}" ]]; then
-  echo "[error] Usage: $0 <release-id> <user@server-ip>" >&2
+  echo "[error] Usage: $0 <release-id> <user@server-ip> [service-name]" >&2
   exit 1
 fi
 
@@ -31,7 +33,7 @@ if [[ ! -d "${RELEASE_DIR}" ]]; then
 fi
 
 echo "[push] Packaging ${RELEASE_ID}..."
-COPYFILE_DISABLE=1 tar -czf "${TARBALL}" -C "${RELEASE_DIR}" .
+COPYFILE_DISABLE=1 tar --no-xattrs -czf "${TARBALL}" -C "${RELEASE_DIR}" .
 
 echo "[push] Uploading tarball to ${SERVER}:${REMOTE_INCOMING}/${RELEASE_ID}.tar.gz"
 ssh -4 "${SERVER}" "mkdir -p ${REMOTE_INCOMING}"
@@ -42,7 +44,7 @@ scp -O -4 "${DEPLOY_SCRIPT}" "${SERVER}:/tmp/deploy-on-server.sh"
 ssh -4 "${SERVER}" "chmod +x /tmp/deploy-on-server.sh"
 
 echo "[push] Running deploy on server..."
-ssh -4 "${SERVER}" "sudo /tmp/deploy-on-server.sh ${RELEASE_ID}"
+ssh -4 "${SERVER}" "sudo /tmp/deploy-on-server.sh ${RELEASE_ID} '${TARGET_SERVICES}'"
 
 rm -f "${TARBALL}"
 echo "[push] Complete. Release ${RELEASE_ID} is live."

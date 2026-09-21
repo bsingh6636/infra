@@ -313,6 +313,31 @@ services:
         source: /opt/brijesh-infra/data/madhyabindu/media
         target: /srv/apps/madhyabindu-municipal/media
 
+  devghat-municipal:
+    enabled: true
+    kind: backend
+    source:
+      key: municipal_backend
+      context: .
+    deploy:
+      mode: isolated
+    runtime:
+      port: 4308
+      start: npm start
+    resources:
+      cpus: "0.25"
+      memory: 256m
+    env:
+      files:
+        nonsecret: env/services/devghat-municipal.env
+        secret: env/services-secrets/devghat-municipal.env
+      required:
+        - JWT_SECRET_KEY
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/devghat/media
+        target: /srv/app/media
+
   redis:
     enabled: true
     kind: datastore
@@ -592,6 +617,28 @@ ingress:
     upstream:
       type: proxy
       service: madhyabindu-municipal
+
+  - name: devghat-web
+    hosts:
+      - name: devghat.codifyteam.com
+    upstream:
+      type: static
+      service: municipal-admin
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: devghat-municipal
+        protocol: http
+      - path: /media/
+        service: devghat-municipal
+        protocol: http
+
+  - name: devghat-api
+    hosts:
+      - name: api-devghat.codifyteam.com
+    upstream:
+      type: proxy
+      service: devghat-municipal
 
   - name: sahayog-web
     hosts:

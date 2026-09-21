@@ -404,7 +404,8 @@ RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm install --frozen-lock
     elif [ -f yarn.lock ]; then corepack enable && yarn install --frozen-lockfile; \\
     elif [ -f package-lock.json ]; then npm ci; \\
     elif [ -f package.json ]; then npm install; \\
-    else echo "No package manifest found in /srv/app" && exit 1; fi
+    else echo "No package manifest found in /srv/app" && exit 1; fi && \\
+    npm cache clean --force && rm -rf /root/.npm
 ENV PORT=${service.runtime.port}
 EXPOSE ${service.runtime.port}
 CMD ["/bin/sh", "/srv/start-service.sh"]

@@ -34,8 +34,12 @@ echo "[deploy] Release: ${RELEASE_ID}"
 mkdir -p "${RELEASES_DIR}" "${INCOMING_DIR}" \
   "${DATA_ROOT}/municipal/media" \
   "${DATA_ROOT}/siranchowk/media" \
+  "${DATA_ROOT}/ratnagar/media" \
+  "${DATA_ROOT}/madhyabindu/media" \
+  "${DATA_ROOT}/devghat/media" \
   "${DATA_ROOT}/redis"
-chmod 775 "${DATA_ROOT}/municipal/media" "${DATA_ROOT}/siranchowk/media"
+chmod 775 "${DATA_ROOT}/municipal/media" "${DATA_ROOT}/siranchowk/media" \
+  "${DATA_ROOT}/ratnagar/media" "${DATA_ROOT}/madhyabindu/media" "${DATA_ROOT}/devghat/media"
 
 # ── Reclaim disk before building ────────────────────────────────────────────
 # On-server builds accumulate dead images and build cache every deploy. On the
@@ -66,6 +70,8 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
   exit 1
 fi
 
+DEPLOY_SERVICES="${2:-}"
+
 # ── Bring up new stack (only restart changed containers) ───────────────────
 if [[ -L "${CURRENT_LINK}" ]]; then
   PREV_RELEASE="$(basename "$(readlink -f "${CURRENT_LINK}")")"
@@ -73,7 +79,18 @@ if [[ -L "${CURRENT_LINK}" ]]; then
 fi
 
 echo "[deploy] Starting release ${RELEASE_ID}..."
-if [ -d "${RELEASE_DIR}/isolated" ] || [ -d "${RELEASE_DIR}/shared" ]; then
+if [[ -n "${DEPLOY_SERVICES}" ]]; then
+  echo "[deploy] Targeted deploy for services: ${DEPLOY_SERVICES}"
+  for svc in ${DEPLOY_SERVICES}; do
+    if [ "$svc" != "edge" ]; then
+      echo "[deploy] Building and starting ${svc}..."
+      docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" build "${svc}"
+      docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --no-deps "${svc}"
+    fi
+  done
+  echo "[deploy] Updating edge proxy..."
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --no-deps edge
+elif [ -d "${RELEASE_DIR}/isolated" ] || [ -d "${RELEASE_DIR}/shared" ]; then
   # Local build contexts present — build images on server. `--pull missing`
   # (not `never`) so prebuilt datastore images like redis can be fetched on
   # first deploy while locally built images are never re-pulled.

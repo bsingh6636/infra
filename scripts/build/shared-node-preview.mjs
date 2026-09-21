@@ -244,7 +244,8 @@ RUN chmod +x /srv/start-scripts/*.sh && \\
       else \\
         echo "Skipping dependency install for $dir"; \\
       fi; \\
-    done
+    done && \\
+    npm cache clean --force && rm -rf /root/.npm
 ${exposePorts.map((port) => `EXPOSE ${port}`).join("\n")}
 CMD ["pm2-runtime", "start", "/srv/pm2/${groupName}.ecosystem.config.js"]
 `;
