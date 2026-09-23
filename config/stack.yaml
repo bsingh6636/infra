@@ -28,6 +28,10 @@ tls:
       mode: wildcard_dns
       dns_provider: cloudflare
       cert_name: brijeshdev.space
+    style-work.brijeshhq.com:
+      mode: dns
+      dns_provider: cloudflare
+      cert_name: style-work.brijeshhq.com
     brijeshhq.com:
       mode: wildcard_dns
       dns_provider: cloudflare
@@ -441,6 +445,9 @@ services:
       output_dir: auto
     deploy:
       mode: edge-static
+    env:
+      runtime:
+        VITE_API_URL: ""
 
   stylework-api:
     enabled: true
@@ -449,16 +456,18 @@ services:
       key: stylework
       context: server
     deploy:
-      mode: shared-node
-      group: low-node
+      mode: isolated
     runtime:
       port: 4309
-      start: npx tsx src/index.ts
+      start: npm run build && npm start
       # Generic names, so pin them here rather than in the shared env files.
       env:
         PORT: "4309"
         CORS_ORIGIN: https://style-work.brijeshhq.com
         TRUST_PROXY: "1"
+    resources:
+      cpus: "0.25"
+      memory: 256m
     env:
       files:
         nonsecret: env/services/stylework-api.env

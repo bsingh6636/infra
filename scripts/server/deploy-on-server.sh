@@ -91,7 +91,7 @@ if [[ -n "${DEPLOY_SERVICES}" ]]; then
     fi
   done
   echo "[deploy] Updating edge proxy..."
-  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --no-deps edge
+  docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" up -d --no-deps --force-recreate edge
 elif [ -d "${RELEASE_DIR}/isolated" ] || [ -d "${RELEASE_DIR}/shared" ]; then
   # Local build contexts present — build images on server. `--pull missing`
   # (not `never`) so prebuilt datastore images like redis can be fetched on
