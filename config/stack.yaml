@@ -72,6 +72,9 @@ sources:
   sahayog:
     repo: git@github.com:bsingh6636/sahayog-crowdfunding.git
     ref: main
+  stylework:
+    repo: https://github.com/bsingh6636/Stylework-Assesment.git
+    ref: master
 
 groups:
   low-node:
@@ -428,6 +431,41 @@ services:
         source: /opt/brijesh-infra/data/sahayog/uploads
         target: /srv/app/uploads
 
+  stylework-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: stylework
+      context: client
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  stylework-api:
+    enabled: true
+    kind: backend
+    source:
+      key: stylework
+      context: server
+    deploy:
+      mode: shared-node
+      group: low-node
+    runtime:
+      port: 4309
+      start: npx tsx src/index.ts
+      # Generic names, so pin them here rather than in the shared env files.
+      env:
+        PORT: "4309"
+        CORS_ORIGIN: https://style-work.brijeshhq.com
+        TRUST_PROXY: "1"
+    env:
+      files:
+        nonsecret: env/services/stylework-api.env
+        secret: env/services-secrets/stylework-api.env
+      required:
+        - STYLE_WORK_DB_URL
+
 ingress:
   - name: portfolio
     hosts:
@@ -670,6 +708,18 @@ ingress:
     upstream:
       type: proxy
       service: sahayog-api
+
+  - name: stylework-web
+    hosts:
+      - name: style-work.brijeshhq.com
+    upstream:
+      type: static
+      service: stylework-web
+      spa_fallback: true
+    routes:
+      - path: /api/
+        service: stylework-api
+        protocol: http
 
   # - name: otp-api
   #   hosts:
