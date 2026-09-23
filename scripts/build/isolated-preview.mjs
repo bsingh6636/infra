@@ -390,10 +390,14 @@ async function writeRealBackendContext(stack, service, checkoutRoot, contextDire
   const checkoutPath = path.join(checkoutRoot, service.name);
   const projectDirectory = getProjectDirectory(checkoutPath, service);
   const appDirectory = path.join(contextDirectory, "app");
+  const runtimeEnvLines = Object.entries(service.runtime?.env || {})
+    .map(([k, v]) => `export ${k}="\${${k}:-${v}}"`)
+    .join("\n");
   const startScript = `#!/bin/sh
 set -eu
 cd /srv/app
 export PORT="\${PORT:-${service.runtime.port}}"
+${runtimeEnvLines}
 exec sh -lc ${JSON.stringify(service.runtime.start)}
 `;
   const dockerfile = `FROM node:20-alpine
@@ -402,8 +406,8 @@ COPY app/ /srv/app/
 COPY start-service.sh /srv/start-service.sh
 RUN if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm install --frozen-lockfile; \\
     elif [ -f yarn.lock ]; then corepack enable && yarn install --frozen-lockfile; \\
-    elif [ -f package-lock.json ]; then npm ci; \\
-    elif [ -f package.json ]; then npm install; \\
+    elif [ -f package-lock.json ]; then npm ci --include=dev; \\
+    elif [ -f package.json ]; then npm install --include=dev; \\
     else echo "No package manifest found in /srv/app" && exit 1; fi && \\
     npm cache clean --force && rm -rf /root/.npm
 ENV PORT=${service.runtime.port}

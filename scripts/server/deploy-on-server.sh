@@ -37,9 +37,11 @@ mkdir -p "${RELEASES_DIR}" "${INCOMING_DIR}" \
   "${DATA_ROOT}/ratnagar/media" \
   "${DATA_ROOT}/madhyabindu/media" \
   "${DATA_ROOT}/devghat/media" \
+  "${DATA_ROOT}/sahayog/uploads" \
   "${DATA_ROOT}/redis"
 chmod 775 "${DATA_ROOT}/municipal/media" "${DATA_ROOT}/siranchowk/media" \
-  "${DATA_ROOT}/ratnagar/media" "${DATA_ROOT}/madhyabindu/media" "${DATA_ROOT}/devghat/media"
+  "${DATA_ROOT}/ratnagar/media" "${DATA_ROOT}/madhyabindu/media" "${DATA_ROOT}/devghat/media" \
+  "${DATA_ROOT}/sahayog/uploads"
 
 # ── Reclaim disk before building ────────────────────────────────────────────
 # On-server builds accumulate dead images and build cache every deploy. On the

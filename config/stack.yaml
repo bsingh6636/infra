@@ -406,13 +406,15 @@ services:
       key: sahayog
       context: server
     deploy:
-      mode: shared-node
-      group: low-node
+      mode: isolated
     runtime:
       port: 4306
       start: npm start
       env:
         FUNDRAISER_PORT: "4306"
+    resources:
+      cpus: "0.25"
+      memory: 256m
     env:
       files:
         nonsecret: env/services/sahayog-api.env
@@ -421,6 +423,10 @@ services:
         - FUNDRAISER_JWT_SECRET
         - FUNDRAISER_MONGODB_URI
         - FUNDRAISER_ADMIN_PASSWORD
+    storage:
+      - type: bind
+        source: /opt/brijesh-infra/data/sahayog/uploads
+        target: /srv/app/uploads
 
 ingress:
   - name: portfolio
@@ -651,6 +657,9 @@ ingress:
       spa_fallback: true
     routes:
       - path: /api/
+        service: sahayog-api
+        protocol: http
+      - path: /uploads/
         service: sahayog-api
         protocol: http
 
