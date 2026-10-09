@@ -16,6 +16,8 @@ flock -w 600 9
 mapfile -t HOSTS < <(python3 -c 'import json,sys; print("\n".join(json.load(open(sys.argv[1]))["hosts"]))' "$UPLOAD/config.json")
 [[ "${#HOSTS[@]}" -gt 0 ]]
 for host in "${HOSTS[@]}"; do [[ "$host" =~ ^[a-z0-9.-]+$ ]]; done
+mapfile -t PROTECTED_HOSTS < <(python3 -c 'import json,sys; print("\n".join(json.load(open(sys.argv[1]))["protectedHosts"]))' "$UPLOAD/config.json")
+for host in "${PROTECTED_HOSTS[@]}"; do [[ "$host" =~ ^[a-z0-9.-]+$ ]]; done
 mapfile -t EDGES < <(docker ps -q --filter label=com.docker.compose.project=brijesh-infra --filter label=com.docker.compose.service=edge)
 [[ "${#EDGES[@]}" -eq 1 ]] || { echo 'Expected exactly one running shared edge' >&2; exit 1; }
 EDGE="${EDGES[0]}"
@@ -33,6 +35,16 @@ probe() {
 }
 # Verify all portfolio hostnames before any changes. TLS verification stays enabled.
 for host in "${HOSTS[@]}"; do probe "$host" / >/dev/null; done
+CONTAINERS_BEFORE="$(docker ps -q | sort)"
+protected_status() {
+  local host
+  for host in "${PROTECTED_HOSTS[@]}"; do
+    # Some API roots legitimately return 404; compare against their baseline.
+    printf '%s ' "$host"
+    curl --silent --output /dev/null --write-out '%{http_code}\n' --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host/" || true
+  done
+}
+PROTECTED_BEFORE="$(protected_status)"
 RELEASE="$ROOT/.portfolio-releases/$COMMIT"
 if [[ "$MODE" == deploy ]]; then
   (cd "$UPLOAD" && sha256sum -c site.tar.gz.sha256)
@@ -73,6 +85,12 @@ while IFS= read -r -d '' asset; do
   probe "${HOSTS[0]}" "$relative" | cmp - "$asset"
 done < <(find "$RELEASE/static" -type f ! -name '*.map' -print0)
 docker exec "$EDGE" nginx -t
+[[ "$(docker ps -q | sort)" == "$CONTAINERS_BEFORE" ]] || { echo 'Running containers changed during deployment' >&2; exit 1; }
+[[ "$(protected_status)" == "$PROTECTED_BEFORE" ]] || { echo 'Other site status changed; restoring portfolio' >&2; exit 1; }
+for host in "${HOSTS[@]}"; do
+  marker="$(curl --fail --silent --show-error --retry 3 --max-time 30 "https://$host/deployment.json?commit=$COMMIT")"
+  python3 -c 'import json,sys; assert json.loads(sys.argv[1])["commit"] == sys.argv[2]' "$marker" "$COMMIT"
+done
 
 # Retain the previous directory/link in the same parent, so relative links work.
 SAVED="$PREVIOUS"

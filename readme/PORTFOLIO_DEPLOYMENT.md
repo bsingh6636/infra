@@ -63,8 +63,9 @@ checks the HTML root element, and runs `nginx -t`. Then it exports the `artifact
 target. The Dockerfile uses Node 24 (the project's cross-env 10 requires Node 20+)
 and `npm ci`, which uses the lockfile and fails if it disagrees with package.json.
 `.dockerignore` excludes local dependencies, generated output, Git, and env/key files.
-CRA's existing build command sets `CI=false`; warnings therefore do not fail the
-build. Credentials must never be passed as `REACT_APP_*`: frontend values become
+The older local checkout's build command sets `CI=false`; current GitHub main
+also prerenders HTML after CRA builds. The workflow uses the triggering commit's
+own build command. Credentials must never be passed as `REACT_APP_*`: frontend values become
 public browser code.
 
 ## Phase 2: inspect and prepare the server
@@ -161,7 +162,10 @@ gh run view RUN_ID --repo bsingh6636/myPortfolio --log-failed
 Expected: a successful build followed by a successful deploy job. The server tests
 all configured portfolio hostnames directly at `127.0.0.1` with real TLS verification,
 checks `deployment.json` for the SHA, and compares the served index and static assets
-byte for byte. The runner also checks the public URLs through DNS/CDN. Confirm
+byte for byte. It compares unrelated sites' origin HTTP statuses with their
+pre-deploy baseline and checks that running container IDs are unchanged. Public
+commit-marker checks also run before accepting the release, so their failure
+restores the previous portfolio. The runner rechecks the URLs through DNS/CDN. Confirm
 `https://brijeshkushwaha.com.np/deployment.json?commit=SHA` contains the workflow SHA,
 open the page in a browser, and compare unrelated sites against the pre-deploy baseline.
 
@@ -185,7 +189,10 @@ bash scripts/ci/deploy-portfolio.sh FULL_PREVIOUS_SHA ignored rollback
 
 This uses the same host verification, lock, atomic swap, and health checks, without
 rebuilding. The target must already exist within the current edge-static mount.
-Keep old releases; pruning is deliberately manual. A full infra release may replace
+Keep old releases; pruning is deliberately manual. Existing browser tabs can still
+request assets from their previous build; retained directories support rollback
+but do not expose those old hashed assets through the new release's `/static` path.
+Reloading the page selects the current build. A full infra release may replace
 the mounted parent and rebuild the portfolio; inspect that new release before
 attempting a portfolio-only rollback across a full-stack release boundary.
 

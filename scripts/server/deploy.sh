@@ -9,6 +9,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
+if [[ ! -f "${ENV_FILE}" ]]; then
+  ENV_FILE="${REPO_ROOT}/.env.public"
+fi
 RELEASES_DIR="${REPO_ROOT}/generated/runtime-state/releases"
 
 # ── Load SERVER from .env ────────────────────────────────────────────────────

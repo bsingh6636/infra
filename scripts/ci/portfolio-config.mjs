@@ -15,5 +15,7 @@ if (!entries.length || entries.some(entry => entry.upstream.type !== 'static')) 
   throw new Error('Portfolio ingress must use the shared static edge');
 }
 const hosts = entries.flatMap(entry => entry.hosts.map(host => typeof host === 'string' ? host : host.name));
-if (hosts.some(host => !/^[a-z0-9.-]+$/.test(host))) throw new Error('Invalid portfolio hostname');
-process.stdout.write(JSON.stringify({ service: 'portfolio-web', project: 'brijesh-infra', hosts }, null, 2) + '\n');
+const protectedHosts = stack.ingress.filter(entry => entry.upstream.service !== 'portfolio-web')
+  .map(entry => typeof entry.hosts[0] === 'string' ? entry.hosts[0] : entry.hosts[0].name);
+if ([...hosts, ...protectedHosts].some(host => !/^[a-z0-9.-]+$/.test(host))) throw new Error('Invalid hostname');
+process.stdout.write(JSON.stringify({ service: 'portfolio-web', project: 'brijesh-infra', hosts, protectedHosts }, null, 2) + '\n');
