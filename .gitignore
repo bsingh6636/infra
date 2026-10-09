@@ -35,6 +35,7 @@ logs/
 # Phase 1 implementation artifacts
 node_modules/
 generated/
+__pycache__/
 
 # Local runtime env files
 env/global.env

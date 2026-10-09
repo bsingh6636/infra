@@ -1,0 +1,24 @@
+name: Check portfolio deployment tools
+on:
+  push:
+    branches: [master]
+    paths: ['scripts/ci/**', 'scripts/server/**', 'config/stack.yaml', '.github/workflows/portfolio-deployment-check.yml']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Validate the public portfolio contract
+        run: node scripts/ci/portfolio-config.mjs
+      - name: Check Bash syntax and deployment scripts
+        run: |
+          bash -n scripts/ci/deploy-portfolio.sh
+          bash -n scripts/server/portfolio-on-server.sh
+          shellcheck scripts/ci/deploy-portfolio.sh scripts/server/portfolio-on-server.sh
+      - name: Test archive validation, atomic activation, and rollback on Linux
+        run: python3 scripts/server/test_portfolio_files.py

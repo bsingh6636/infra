@@ -19,6 +19,11 @@ CURRENT_LINK="${INFRA_ROOT}/current"
 DATA_ROOT="${INFRA_ROOT}/data"
 PROJECT_NAME="brijesh-infra"
 
+# Serialize whole-stack releases with portfolio-only updates.
+mkdir -p "${INFRA_ROOT}/locks"
+exec 9>"${INFRA_ROOT}/locks/deployment.lock"
+flock -w 600 9
+
 if [[ -z "${RELEASE_ID}" ]]; then
   echo "[error] Usage: $0 <release-id>" >&2
   exit 1

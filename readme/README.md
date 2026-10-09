@@ -9,6 +9,8 @@ This folder is the current documentation set for the new infra workflow.
 
 ## Focused Guides
 
+- [`PORTFOLIO_DEPLOYMENT.md`](./PORTFOLIO_DEPLOYMENT.md) — portfolio CI, SSH, shared Nginx releases, verification, and rollback
+
 - [`OPERATIONS.md`](./OPERATIONS.md) — day-to-day cheat sheet: logs, PM2, restarts, diagnostics
 - [`SERVICE_MANAGEMENT.md`](./SERVICE_MANAGEMENT.md) — how to add, update, disable, remove, and move services
 - [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md) — release snapshots, apply, rollback

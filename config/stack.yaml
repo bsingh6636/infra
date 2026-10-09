@@ -100,6 +100,8 @@ services:
       output_dir: auto
     deploy:
       mode: edge-static
+      # Portfolio CI builds this exact push commit and swaps versioned assets
+      # inside the existing edge-static mount; no separate runtime container.
 
   ranju-web:
     enabled: true

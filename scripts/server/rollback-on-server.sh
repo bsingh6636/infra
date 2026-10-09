@@ -12,6 +12,10 @@ RELEASES_DIR="${INFRA_ROOT}/releases"
 CURRENT_LINK="${INFRA_ROOT}/current"
 PROJECT_NAME="brijesh-infra"
 
+mkdir -p "${INFRA_ROOT}/locks"
+exec 9>"${INFRA_ROOT}/locks/deployment.lock"
+flock -w 600 9
+
 CURRENT_ID=""
 if [[ -L "${CURRENT_LINK}" ]]; then
   CURRENT_ID="$(basename "$(readlink -f "${CURRENT_LINK}")")"
