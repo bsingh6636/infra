@@ -1,5 +1,36 @@
 # Portfolio deployment, with explanations
 
+## Verification record — 10 October 2026
+
+- Infra implementation was published to `master`; the portfolio workflow pins
+  infra commit `f5ee51da09f60777411d2a3d5c6d6db8cc680f07`.
+- Portfolio deployment files were published to `main` as commit
+  `8f7bc3580cc7efd2a4b1c3eb0c187a4089e88b54`, using an isolated worktree based on
+  current GitHub main. The original local checkout's unrelated uncommitted edits
+  and existing ESLint workflow/.gitattributes were preserved. That checkout remains
+  on its older local commit; integrate remote history carefully before a later push.
+- [Infra validation passed](https://github.com/bsingh6636/infra/actions/runs/37999513811):
+  Bash syntax, ShellCheck, public config validation, and all five Linux archive,
+  atomic-switch, and rollback tests.
+- [The portfolio push run](https://github.com/bsingh6636/myPortfolio/actions/runs/37999646162)
+  built and health-tested the Docker container and exported the static artifact.
+  Its deployment job stopped at `Missing DEPLOY_SSH_KEY`, before uploading anything.
+- A [manual build-only run](https://github.com/bsingh6636/myPortfolio/actions/runs/37999674992)
+  passed with `deploy=false`, verifying workflow_dispatch and the container build.
+- `DEPLOY_HOST`, `DEPLOY_USER`, and the trusted `DEPLOY_KNOWN_HOSTS` secret are
+  configured. `ubuntu` is the configured user, but authentication failed with all
+  discovered local SSH identities. `ec2-user` with the existing EC2 key also failed.
+- Public portfolio, Ranju, and Subsnepal pages returned HTTP 200. This is a check
+  of the existing sites, not evidence of a new deployment. Server internals and
+  the actual live mounts remain unverified until authenticated SSH access works.
+
+**Actually deployed by this workflow: no.** Remaining work: verify the working SSH
+user/key, inspect the real server layout and existing deploy-script locking, configure
+the private-key secret, rerun deployment, inspect logs, and verify the live SHA/site.
+
+The local `.env.public` spelling was corrected to `SERVER=ubuntu@13.207.194.148`;
+legacy `server:deploy` now reads it if `.env` is absent. This file remains local.
+
 ## Architecture and ownership
 
 `config/stack.yaml` keeps `portfolio-web` as `edge-static`. One existing Docker
