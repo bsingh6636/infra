@@ -1,0 +1,123 @@
+{
+  "captured_date": "2026-10-15",
+  "timezone": "Asia/Kolkata",
+  "head": "30d49879d927f6c04792b4f5d499fae401baba19",
+  "branch": "isolated_containers",
+  "files": [
+    {
+      "file": "CLAUDE.md",
+      "sha256": "5b3c97c963d2bb76481f1799cdb142d259905e76f98f5ddd50e2602b46bd90a5"
+    },
+    {
+      "file": "README.md",
+      "sha256": "35b2918ed838244af73c9e2602e772b800b56164064bddece049e7477e7807ac"
+    },
+    {
+      "file": "TODO.md",
+      "sha256": "11e0cd036cf598ad0136d0877306fa883f7567f96ec43c29cf8137ec6ec65965"
+    },
+    {
+      "file": "docs/README.md",
+      "sha256": "0afdd54d175f13ee1612767dddd1fc0081ab2d36e967aa4ae70646e429150aee"
+    },
+    {
+      "file": "gemini.md",
+      "sha256": "b388a84cb3bf18ae9a8a62fdd7b44ee75f6d85fd15abed82a771388078f82635"
+    },
+    {
+      "file": "readme/MASTER_GUIDE.md",
+      "sha256": "0a878645c71e505992d170d3753af00294d73453a02e263561c55c26caa10618"
+    },
+    {
+      "file": "readme/MEDIA_STORAGE.md",
+      "sha256": "2349b17dab77c09ca9c9b9f1f8a1e3c18ac2d876b367327e85c2d1ec117f54ed"
+    },
+    {
+      "file": "readme/OPERATIONS.md",
+      "sha256": "e9a689a824a7b5d2fc41f34c722097d899444b73f3d6e158b4975c94ed79dcc6"
+    },
+    {
+      "file": "readme/PROD_RUNBOOK.md",
+      "sha256": "e1162c68ca3ae06da3c2d03634da84d00c04003c65bb055771593edb733c8bf6"
+    },
+    {
+      "file": "readme/README.md",
+      "sha256": "1e7afd88d50183f981994e5aa0bbde4f295de4cae9aef9829fb843f55de5fb60"
+    },
+    {
+      "file": "readme/RELEASES_AND_ROLLBACK.md",
+      "sha256": "68e2f040a8449b0392531cd5b834976b9010330db6c89e6092a97bb43a7f2a32"
+    },
+    {
+      "file": "readme/SERVICE_MANAGEMENT.md",
+      "sha256": "3ccbf4f0239112f128cbedfa24b8fbd626fd4c0e5726780a9fa24808ed8651ad"
+    },
+    {
+      "file": "readme/STATUS_AND_DEFERRED.md",
+      "sha256": "d1be024f57db07ea3c337aa90b263311fa574f85d4d268fb7cac7e44b7f1e26b"
+    },
+    {
+      "file": "ssl-setup/README.md",
+      "sha256": "8db010a8f9745a5fe9890d02581a7523b4e3b6b9553cd422505551e5ee6fd7fb"
+    }
+  ],
+  "before_migration_head": "9b2f406893b75f427e5b67de68a7226a2f2db74f",
+  "before_migration_files": [
+    {
+      "file": "CLAUDE.md",
+      "sha256": "a919cd97cfc2e371ed3a2c8c81db8f7a9912d5a9f24bd299491592f709afda2e"
+    },
+    {
+      "file": "README.md",
+      "sha256": "35b2918ed838244af73c9e2602e772b800b56164064bddece049e7477e7807ac"
+    },
+    {
+      "file": "TODO.md",
+      "sha256": "11e0cd036cf598ad0136d0877306fa883f7567f96ec43c29cf8137ec6ec65965"
+    },
+    {
+      "file": "docs/README.md",
+      "sha256": "0afdd54d175f13ee1612767dddd1fc0081ab2d36e967aa4ae70646e429150aee"
+    },
+    {
+      "file": "gemini.md",
+      "sha256": "b388a84cb3bf18ae9a8a62fdd7b44ee75f6d85fd15abed82a771388078f82635"
+    },
+    {
+      "file": "readme/MASTER_GUIDE.md",
+      "sha256": "0a878645c71e505992d170d3753af00294d73453a02e263561c55c26caa10618"
+    },
+    {
+      "file": "readme/MEDIA_STORAGE.md",
+      "sha256": "2349b17dab77c09ca9c9b9f1f8a1e3c18ac2d876b367327e85c2d1ec117f54ed"
+    },
+    {
+      "file": "readme/OPERATIONS.md",
+      "sha256": "44a31eb8881d8ccebc5294760e59451ddba51cc754eb507d549bb84011939246"
+    },
+    {
+      "file": "readme/PROD_RUNBOOK.md",
+      "sha256": "e1162c68ca3ae06da3c2d03634da84d00c04003c65bb055771593edb733c8bf6"
+    },
+    {
+      "file": "readme/README.md",
+      "sha256": "1e7afd88d50183f981994e5aa0bbde4f295de4cae9aef9829fb843f55de5fb60"
+    },
+    {
+      "file": "readme/RELEASES_AND_ROLLBACK.md",
+      "sha256": "68e2f040a8449b0392531cd5b834976b9010330db6c89e6092a97bb43a7f2a32"
+    },
+    {
+      "file": "readme/SERVICE_MANAGEMENT.md",
+      "sha256": "3ccbf4f0239112f128cbedfa24b8fbd626fd4c0e5726780a9fa24808ed8651ad"
+    },
+    {
+      "file": "readme/STATUS_AND_DEFERRED.md",
+      "sha256": "d1be024f57db07ea3c337aa90b263311fa574f85d4d268fb7cac7e44b7f1e26b"
+    },
+    {
+      "file": "ssl-setup/README.md",
+      "sha256": "8db010a8f9745a5fe9890d02581a7523b4e3b6b9553cd422505551e5ee6fd7fb"
+    }
+  ]
+}

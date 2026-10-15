@@ -1,109 +1,59 @@
-# Status And Deferred Items
+# Status And Deferred Work
+
+This describes implemented repository behavior as of the documentation refresh on 2026-10-15. Deployment status must be checked against the server's active release; no migration is marked complete solely because its code is committed.
 
 ## Implemented
 
-### Phase 1
+- `config/stack.yaml` defines service sources, deployment modes, ingress, TLS, limits, env-file locations, dependencies, and storage.
+- Structural/env validation and optional remote Git source validation.
+- Real and stub builders for edge-static, isolated, and shared-node modes, plus disposable mode previews.
+- TLS-aware production and HTTP-only local release rendering/publishing, local apply/rollback, and server deployment/rollback scripts.
+- Infisical root-path exports to declared local env files, including environment aliases and scoped/forced pulls.
+- Active SSL tooling in `certbot-run.sh`, hostname-list generation, and optional self-signed fallback paths.
+- Dockerfile-based isolated builds and prebuilt image-mode services. Redis is enabled with cache-only settings; `otp-api` remains disabled.
+- Seven edge-static frontends, including `codify-web` on `codifyteam.com` / `www.codifyteam.com`. Edge-static output detection supports `dist`, `build`, and `out`; release Nginx includes `_next` assets in its cache rule.
 
-- repo structure for the new system
-- `config/stack.yaml`
-- env file model
-- validation framework
+## Municipal Isolation Change
 
-### Phase 2
+The five municipal backends are configured as independent containers using one shared `municipal-backend` image/context. Each has a per-service environment, its own port, limits of 0.20 CPU / 192m, and a separate host media directory mounted at `/srv/app/media`.
 
-- renderer for preview `compose.yaml`
-- renderer for preview `nginx.conf`
+The `low-node` shared group now contains `cors-api` and `getdata`. The targeted `municipal` deployment includes the shared group so its former municipal PM2 processes are removed, then recreates edge. The [migration guide](MUNICIPAL_MIGRATION.md) records the previous topology, downtime window, rebuild requirements, and verification.
 
-### Phase 3
+## Fixes And Regression Coverage
 
-- `edge-static` build flow
-- disposable edge-static preview
+- Isolated backend env generation overlays each service's `runtime.env` and `PORT`, preventing the shared image's default port from being reused by every container.
+- Targeted municipal deployment rebuilds the revised shared group.
+- Static redeployment stages and replaces the named site's directory so deleted files disappear, and restores/preserves the old directory on extraction or reload failure.
+- Shell service-name guards protect the static and municipal management commands from shell metacharacters in a supplied target.
+- Five fixture regression tests run with `npm test`, covering shared-image runtime settings/release packaging, migration ordering, static replacement, and extraction/reload failures.
 
-### Phase 4
+Existing env quoting and frontend dependency/env handling remain part of the builders. The production deployment requests `--build` for context-based releases. Local apply and rollback do not request forced rebuilds; do not infer stronger image immutability guarantees from earlier phase notes.
 
-- isolated preview flow
-- `subsnepal-web`
-- `subsnepal-api`
+## Known Operational Limits
 
-### Phase 5
-
-- shared-node preview flow
-- PM2-managed grouped backends
-- `cors-api`
-- `getdata`
-- `municipal-api`
-
-### Bug Fixes
-
-- **env value quoting** — `serializeEnvValue` in `scripts/build/shared-node-preview.mjs`
-  and `scripts/build/isolated-preview.mjs` now single-quotes all generated env values.
-  Previously, values containing `&` (e.g. JWT secrets) were written unquoted; sh parsed
-  the `&` as a background operator and ran the trailing text as a foreground command,
-  which exited 127 under `set -e` and crashed every PM2 process on boot.
-- **frontend build dependencies** — `scripts/build/edge-static.mjs` and `scripts/build/isolated-preview.mjs`
-  now use `--include=dev` during `npm install`. This ensures tools like `tsc` and `vite` are
-  available for builds even when `NODE_ENV=production` is set in the environment.
-- **production port default** — `package.json` now defaults the production release port
-  to `80` in the `release:publish:prod` script, avoiding the default local testing
-  port of `8091`.
-- **frontend environment variables** — `scripts/build/isolated-preview.mjs` now correctly
-  merges and injects service environment variables (like `REACT_APP_VM`) into the
-  frontend build process. It also writes a `.env.local` fallback to ensure tools
-  like `react-scripts` pick up the values during compilation.
-- **immutable release rebuilds** — `scripts/server/deploy-on-server.sh` now uses
-  `docker compose up --build`. This prevents Docker from using stale cached images
-  when a release snapshot contains updated files (critical for static asset changes).
-
-### Phase 6
-
-- local release snapshots
-- local publish/apply/rollback
-- local municipal media bind mount
-
-### Phase 7 (Production Readiness)
-
-- real non-stub end-to-end proof across every service
-- `--build` immutability fix in `apply.mjs` and `rollback/index.mjs`
-- stack-driven storage directory creation in `apply.mjs` (replaces hardcoded `municipal/media`)
-- TLS rendering in `release-nginx.mjs` — per-host cert resolution from `tls.root_domains`
-- multi-root-domain support (`brijeshkushwaha.com.np` + `subsnepal.com` + any future domains)
-- `--cert-name` removed — cert path fully automatic from `stack.yaml`
-- production deploy scripts: `push-release.sh`, `deploy-on-server.sh`, `rollback-on-server.sh`
-- SSL automation: `certbot-run.sh` with per-domain isolation, expiry-aware skip, `--grouped` mode
-- `generate-domains-conf.mjs` — auto-syncs `domains.conf` from `stack.yaml`
-- `setup-ssl.sh` renewal hooks updated to use new release system (`/opt/brijesh-infra/current/`)
-- `PROD_RUNBOOK.md` — full local test + production deployment + verification guide
-
-### Phase 8 (Multi-Domain + Service Scaffolding)
-
-- additional root domains live: `brijeshdev.space`, `brijeshhq.com`, `codifyteam.com` (alongside `brijeshkushwaha.com.np`, `subsnepal.com`)
-- `scripts/validate/checks/service-modes.mjs` — validates `deploy.mode`/`build.strategy`/`depends_on`/`resources` consistency per service (see [`SERVICE_MANAGEMENT.md`](./SERVICE_MANAGEMENT.md))
-- `otp-api` (Spring Boot, `build.strategy: dockerfile`) and `redis` (datastore, image mode) staged in `stack.yaml` as the reference examples for those service kinds — both currently `enabled: false`, not live
-- `ssl-setup/ensure-fallback-cert.sh` — self-signed fallback cert so nginx can start even when a real cert for a domain hasn't been issued yet (symlinks missing cert paths to a fallback; run before `docker compose up` on the server)
-- one-command deploy shortcuts: `npm run server:ship` (publish + push + deploy) and `npm run server:deploy` (package + deploy latest published release) — see [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md)
+- A Git commit/push and release publishing are separate from a production deployment.
+- Publishing checks generated inputs exist; it does not certify their age or distinguish real application outputs from stubs.
+- `nginx -t` is not an application health check. Automatic recovery in server deployment covers its Nginx validation branch, not every failure.
+- Rollback requires usable prior artifacts/images. Docker image/build-cache pruning can remove non-running release images; server rollback uses `--pull never` and stops the current stack.
+- `deploy:edge-static` edits the current release in place; original lock hashes/tarballs are not refreshed. Use a new release for a separate rollback snapshot or ingress changes.
+- Municipal deploy/management service lists are fixed shell arrays/strings; update them when adding another municipality.
+- Current Codify ingress has `spa_fallback: true`; unknown paths return the homepage instead of the exported 404 page. Routing-policy changes require config and release updates.
+- The `municipal` / `muncipal` hostname warning is pre-existing; use the exact configured hosts.
+- `project.live_symlink` is currently unused by deployment scripts, which use `/opt/brijesh-infra/current`.
 
 ## Deferred
 
-- release pruning automation
-- CI/CD integration
+- Automated release-directory retention (`release_retention: 10` is not enforced).
+- CI/CD, application health monitoring/alerting, and post-deploy endpoint validation.
+- Verified unattended certificate renewal scheduling and Nginx deploy hooks on the actual server.
+- Regular media/database backups with documented restore verification.
+- Broader disaster recovery, security/credential-rotation, and database runbooks.
+- Deriving shell service groups from config and strengthening rollback image availability.
 
-## Legacy Files
+Use [../TODO.md](../TODO.md) as the follow-up checklist.
 
-The old manual `docs/*.md` files were removed. The items below still exist but should not be treated as the new source of truth:
+## Legacy References And Removal
 
-- `docs/`
-- `ssl-setup/setup-ssl.sh` — replaced by `ssl-setup/certbot-run.sh`
-- old manual compose/nginx/deploy material
+Current instructions live in `readme/`, `config/stack.yaml`, and `scripts/`. `docs/README.md` redirects here. Active SSL utilities and older manual scripts coexist under `ssl-setup/`; [its README](../ssl-setup/README.md) identifies them.
 
-For the new workflow, use:
-
-- `readme/`
-- `config/stack.yaml`
-- `scripts/`
-
-## Recommended Next Step
-
-- Real builds instead of stub builds
-- Full integrated local release test (`PROD_RUNBOOK.md` Part 1)
-- SSL cert provisioning on server (`certbot-run.sh --grouped`)
-- First production deploy (`push-release.sh`)
+The [dated archive](archive/2026-10-15-pre-doc-refresh/README.md) preserves docs from `9b2f406` and `30d4987` with checksums. Remove that temporary reference only after the migration, docs, and rollback needs are verified, using its cleanup checklist. Runtime legacy files require a separate caller/hook audit; deleting documentation copies does not retire those scripts.

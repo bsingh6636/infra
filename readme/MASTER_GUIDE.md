@@ -1,304 +1,144 @@
 # Master Guide
 
-## Purpose
-
-This guide is the main operator manual for the new infra system in this repo.
-
-It covers:
-
-- validation
-- preview flows
-- service build flows
-- local release publish/apply/rollback
-- production TLS release publish and deploy
-- SSL certificate issuance and renewal
-- service and domain lifecycle changes
-
-## Source Of Truth
-
-- Main config: [`../config/stack.yaml`](../config/stack.yaml)
-- Scripts: [`../scripts/`](../scripts)
-- Local release state: [`../generated/runtime-state/`](../generated/runtime-state)
+This is the operator overview for the config-driven infrastructure. [config/stack.yaml](../config/stack.yaml) defines the target stack; [PROD_RUNBOOK.md](PROD_RUNBOOK.md) covers deployment and verification. Check the server's current release separately to determine what is live.
 
 ## Service Modes
 
-- `edge-static`
-  - static frontend assets served directly by edge nginx
-  - examples: `portfolio-web`, `ranju-web`, `cors-web`, `municipal-admin`
-- `isolated`
-  - one container per service
-  - examples: `subsnepal-web`, `subsnepal-api`
-- `shared-node`
-  - one container per group, multiple PM2-managed backend processes inside it
-  - current group: `low-node`
-  - current services: `cors-api`, `getdata`, `municipal-api`
+| Mode | Current enabled services | Runtime |
+|---|---|---|
+| `edge-static` | portfolio-web, ranju-web, cors-web, municipal-admin, sahayog-web, stylework-web, codify-web | Static files served by edge Nginx |
+| `shared-node` | cors-api, getdata | PM2 in `shared-low-node` |
+| `isolated` | subsnepal-web, subsnepal-api, municipal-api, siranchowk-municipal, ratnagar-municipal, madhyabindu-municipal, devghat-municipal, sahayog-api, stylework-api | One container per service |
+| `image` | redis | Prebuilt image |
 
-## Environment File Precedence
+`otp-api` is a disabled isolated service using its repository Dockerfile. Redis is enabled and `subsnepal-api` depends on it.
 
-Applied in this order:
+## Environments
 
-1. `env/global.env`
-2. `env/global.secrets.env`
-3. `env/services/<service>.env`
-4. `env/services-secrets/<service>.env`
-
-## Environment Management (Infisical)
-
-We use [Infisical](https://infisical.com/) to manage the environment values for development, staging, and production. In Infisical mode, the pull script exports one dotenv payload from Infisical and writes it into every env file listed above.
-
-### Setup
-
-Before pulling secrets for the first time:
+Install local dependencies and connect Infisical:
 
 ```bash
-npm run infisical:login               # log in to your account
-npm run infisical:init                # link this repo to the Infisical project
+npm ci
+npm run infisical:login
+npm run infisical:init
+npm run infisical:pull:production
 ```
 
-### Pulling Env Values
-
-Pull all env values for a specific environment:
+Development and staging use `infisical:pull:development` and `infisical:pull:staging`. The script maps environment aliases to `dev`, `staging`, and `prod`, exports from `/`, and writes the same payload to the declared global and enabled-service env files. It does not split one export by service.
 
 ```bash
-npm run infisical:pull:development    # pulls into local env/ files
-npm run infisical:pull:staging        # pulls into local env/ files
-npm run infisical:pull:production     # pulls into local env/ files
+npm run infisical:pull:production -- --force
+npm run infisical:pull:production -- --only=subsnepal-api
+npm run infisical:pull:production -- --dry-run
 ```
 
-These commands map to the actual Infisical environment slugs used by this project:
-`development` -> `dev`, `staging` -> `staging`, and `production` -> `prod`.
+The dotenv merge order is global nonsecret, global secret, service nonsecret, service secret. Later files override earlier ones. Isolated backend builds then overlay `runtime.env` and finally set `PORT` from `runtime.port`. Each backend gets its own generated env file, including when multiple services share an image. Shared-node start scripts also apply their declared `runtime.env` after loading the merged files. Image-mode env files are generated at publish time.
 
-Advanced pull options:
+Frontend build values must be present before building; restarting a container does not rebuild static bundles. Keep secrets in the ignored env files. The separate root `.env` supplies the deployment `SERVER`; the server copy can also contain `CLOUDFLARE_API_TOKEN` for SSL tooling.
 
-```bash
-# Force overwrite existing local env files
-npm run infisical:pull -- --env=production --force
-
-# Pull only for a specific service
-npm run infisical:pull -- --env=production --only=subsnepal-api
-
-# Dry run (see what would change)
-npm run infisical:pull -- --env=production --dry-run
-```
-
-### Infisical Structure
-
-- Env values are currently stored at the root `/` path in Infisical.
-- The pull script exports from a single Infisical path and writes that same content into all configured local env files: `env/global.env`, `env/global.secrets.env`, `env/services/*.env`, and `env/services-secrets/*.env`.
-- Local directories are created automatically if they do not exist yet.
-
-The `npm run validate` command still checks the physical env files declared in `stack.yaml`. If you are using Infisical, run the pull first so those files exist locally. If you are managing env files manually, create/update the same files yourself before validating.
-
-## Main Commands
-
-### Validate
+## Validate And Build
 
 ```bash
 npm run validate
+npm test
 npm run validate:remote
-```
-
-### Render General Preview Files
-
-```bash
 npm run render
 ```
 
-### Edge-Static Preview
+`validate:remote` additionally checks Git source access. `render` creates general preview configuration, not deployable application artifacts. Regression tests use local fixtures and mocked server commands.
+
+Production artifacts require real builds:
 
 ```bash
-npm run build:edge-static:stub
-npm run preview:edge-static:render
-npm run preview:edge-static:up
-npm run preview:edge-static:down
+npm run build:edge-static
+npm run build:isolated-preview
+npm run build:shared-node-preview
 ```
 
-Preview port: `8088`
+Static output auto-detection checks `dist`, `build`, and `out` for edge-static services. `codify-web` uses a Next.js static export. Isolated static frontend auto-detection currently checks `dist` and `build`; set `build.output_dir` explicitly if needed there.
 
-### Isolated Preview
+For isolated backends, `build.shared_image: municipal-backend` deduplicates the municipal build context and release image. Ports, environment files, limits, and media mounts remain separate. Rebuild all isolated services after changing runtime settings for several municipalities. Rebuild the entire shared-node group whenever its membership changes.
+
+## Local Previews
+
+Use stub builds for local routing tests only. They overwrite the corresponding generated artifacts; run real builds again before production publishing.
+
+| Scope | Build | Preview commands | Port |
+|---|---|---|---|
+| Static | `npm run build:edge-static:stub` | `npm run preview:edge-static:render`, `:up`, `:down` | 8088 |
+| Isolated | `npm run build:isolated-preview:stub` | `npm run preview:isolated:render`, `:up`, `:down` | 8089 |
+| Shared group | `npm run build:shared-node-preview:stub` | `npm run preview:shared-node:render`, `:up`, `:down` | 8090 |
+
+In the command column, replace the final action with `render`, `up`, or `down`. Mode previews are disposable; use an integrated release to validate image-mode dependencies and persistent mounts.
+
+## Release And Deployment
+
+After builders have produced all enabled services' inputs:
 
 ```bash
-npm run build:isolated-preview:stub
-npm run preview:isolated:render
-npm run preview:isolated:up
-npm run preview:isolated:down
+npm run release:publish -- --release local-check-01 --port 8091
+npm run release:apply -- --release local-check-01
+npm run release:rollback -- --release previous-local-release
 ```
 
-Preview port: `8089`
-
-### Shared-Node Preview
-
-```bash
-npm run build:shared-node-preview:stub
-npm run preview:shared-node:render
-npm run preview:shared-node:up
-npm run preview:shared-node:down
-```
-
-Preview port: `8090`
-
-### Local Release Flow (HTTP, for local testing)
-
-```bash
-npm run release:publish -- --release my-release --port 8091
-npm run release:apply -- --release my-release
-npm run release:rollback -- --release previous-release
-```
-
-Local integrated runtime port: `8091`
-
-### Production Release Flow (TLS, for server deploy)
+Production publishing enables TLS, mounts certificates, and maps ports 80 and 443:
 
 ```bash
 npm run release:publish:prod -- --release prod-YYYYMMDD-01
-./scripts/server/push-release.sh prod-YYYYMMDD-01 ubuntu@SERVER_IP
+./scripts/server/push-release.sh prod-YYYYMMDD-01 aws
 ```
 
-Or, in one command (auto-generates the release id so you don't have to copy it between steps):
+`npm run server:ship -- aws` publishes and deploys already-built artifacts using an automatically generated release ID. `npm run server:deploy -- <release-id>` deploys an existing release using `SERVER` from `.env`. Neither shortcut rebuilds application sources. Committing or pushing Git changes also does not deploy the server.
+
+See [RELEASES_AND_ROLLBACK.md](RELEASES_AND_ROLLBACK.md) for registry publishing, image availability during rollback, and in-place static deployments.
+
+## Municipal Migration And Operations
+
+Follow [MUNICIPAL_MIGRATION.md](MUNICIPAL_MIGRATION.md) for the first cutover. It requires regenerating isolated and shared-node artifacts before publishing. The `municipal` deploy target also rebuilds `shared-low-node` to retire its previous municipal processes. A brief interruption can occur before the edge is recreated.
 
 ```bash
-npm run server:ship               # publish + push + deploy, targets the `aws` SSH alias by default
-npm run server:deploy             # package + deploy the latest already-published release, target read from SERVER in .env
+npm run municipal:status
+npm run municipal:restart -- ratnagar
+npm run municipal:logs -- devghat
+npm run deploy:edge-static -- municipal-admin
 ```
 
-See [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md) for details on both shortcuts.
+The static shortcut replaces one service's files in the current release. Use a normal published release for changed ingress, a new service, or a separate rollback snapshot.
 
-### SSL Certificate Management
+## SSL
 
 ```bash
-npm run ssl:generate-domains         # sync domains.conf from stack.yaml
-npm run ssl:certbot:grouped          # issue/renew one cert per root domain (recommended)
-npm run ssl:certbot:dry              # dry run — simulate without issuing
-sudo bash ssl-setup/certbot-run.sh --domain subsnepal.com   # single domain only
-npm run ssl:certbot:force-all        # force re-issue all certs
+npm run ssl:generate-domains
 ```
 
-## Recommended Workflow
-
-### 1. Edit Config
-
-Update [`../config/stack.yaml`](../config/stack.yaml) and the needed env files.
-
-### 2. Validate
+On the prepared server, with current configuration and Cloudflare credentials:
 
 ```bash
-npm run validate
+sudo bash ssl-setup/certbot-run.sh --grouped
+sudo certbot certificates
 ```
 
-If repo/ref reachability matters for your change:
+TLS is implemented. The generator updates `domains.conf`, not DNS or Nginx. Release publishing renders Nginx. Check renewal scheduling and reload hooks on the server; see [../ssl-setup/README.md](../ssl-setup/README.md).
 
-```bash
-npm run validate:remote
-```
+## Storage And Layout
 
-### 3. Preview Only The Changed Area
-
-- frontend-only static change:
-  - run the `edge-static` preview flow
-- isolated service change:
-  - run the `isolated` preview flow
-- grouped backend change:
-  - run the `shared-node` preview flow
-
-### 4. Publish A Local Release Snapshot
-
-```bash
-npm run release:publish -- --release 20260418-01 --port 8091
-```
-
-### 5. Apply The Local Release
-
-```bash
-npm run release:apply -- --release 20260418-01
-```
-
-### 6. Validate The Integrated Local Stack
-
-Use `curl` with `Host` headers against `127.0.0.1:8091`.
-
-Examples:
-
-```bash
-curl -i -H 'Host: brijeshkushwaha.com.np' http://127.0.0.1:8091/
-curl -i -H 'Host: api-cors-proxy.brijeshkushwaha.com.np' http://127.0.0.1:8091/
-curl -i -H 'Host: subsnepal.brijeshkushwaha.com.np' http://127.0.0.1:8091/api/
-curl -i -H 'Host: admin.municipa.brijeshkushwaha.com.np' http://127.0.0.1:8091/media/
-curl -i -H 'Host: subsnepal.com' http://127.0.0.1:8091/
-curl -i -H 'Host: api.subsnepal.com' http://127.0.0.1:8091/
-```
-
-### 7. Roll Back If Needed
-
-```bash
-npm run release:rollback -- --release 20260418-00
-```
-
-### 8. Publish A Production TLS Release
-
-```bash
-npm run release:publish:prod -- --release prod-20260418-01
-# verify
-grep 'listen 443' generated/runtime-state/releases/prod-20260418-01/nginx.conf
-grep 'ssl_certificate' generated/runtime-state/releases/prod-20260418-01/nginx.conf
-# push to server
-./scripts/server/push-release.sh prod-20260418-01 ubuntu@SERVER_IP
-```
-
-## Add Or Change Services
-
-Use [`SERVICE_MANAGEMENT.md`](./SERVICE_MANAGEMENT.md) for the full flow.
-
-Short version:
-
-1. edit `config/stack.yaml` — add source, service, ingress
-2. if new root domain: add it under `tls.root_domains` with a `cert_name`
-3. add or update env files
-4. run `npm run validate`
-5. run the relevant preview flow
-6. publish and apply a local release
-7. on server: `sudo bash ssl-setup/certbot-run.sh --grouped` (for new domains)
-8. publish and push a production TLS release
-
-## Media Storage
-
-`municipal-api` is the only service that currently needs persistent local storage.
-
-Use [`MEDIA_STORAGE.md`](./MEDIA_STORAGE.md) before changing anything related to:
-
-- `/media`
-- bind mounts
-- backups
-- migration to another server
-- permissions
-
-## Current Local Release Layout
+All five municipal media directories and Sahayog uploads live outside release directories. Municipal containers mount their own media at `/srv/app/media`. Redis is configured as bounded cache-only soft state, with persistence disabled even though a `/data` bind mount exists. See [MEDIA_STORAGE.md](MEDIA_STORAGE.md).
 
 ```text
 generated/runtime-state/
 ├── current -> releases/<release-id>
 ├── data/
-│   └── municipal/
-│       └── media/
-└── releases/
-    └── <release-id>/
-        ├── compose.yaml
-        ├── nginx.conf
-        ├── release.lock.yaml
-        ├── edge-static/
-        ├── isolated/
-        ├── isolated-env/
-        └── shared/
+└── releases/<release-id>/
+    ├── compose.yaml
+    ├── nginx.conf
+    ├── release.lock.yaml
+    ├── edge-static/
+    ├── isolated/           # build contexts in non-registry releases
+    ├── isolated-env/
+    ├── shared/             # build contexts in non-registry releases
+    └── shared-env/
 ```
 
-## Production vs Local Release
+The production layout is `/opt/brijesh-infra/{releases,current,data,incoming}`. Scripts use `/opt/brijesh-infra/current`, rather than the currently unused `project.live_symlink` config value.
 
-| | Local | Production |
-|---|---|---|
-| Command | `release:publish` | `release:publish:prod` |
-| nginx | HTTP only | HTTP→HTTPS redirect + TLS server blocks |
-| Ports | `8091:80` | `80:80` + `443:443` |
-| Cert mounts | none | `/etc/letsencrypt:ro` + `/var/www/certbot:ro` |
-| Deploy | `release:apply` | `push-release.sh` → `deploy-on-server.sh` (or `npm run server:ship` / `npm run server:deploy`) |
-
-See [`PROD_RUNBOOK.md`](./PROD_RUNBOOK.md) for the full end-to-end production guide.
-See [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) for current status and deferred items.
+[Service management](SERVICE_MANAGEMENT.md), [operations](OPERATIONS.md), and [status](STATUS_AND_DEFERRED.md) cover the remaining workflows. [Previous documentation](archive/2026-10-15-pre-doc-refresh/README.md) is retained temporarily with removal criteria.

@@ -1,77 +1,54 @@
-# 🔐 SSL/HTTPS Setup
+# SSL And HTTPS
 
-> Legacy notice: this file documents the older manual SSL setup flow.
->
-> For the current config-driven workflow, start with:
-> - [`../readme/README.md`](../readme/README.md)
-> - [`../readme/MASTER_GUIDE.md`](../readme/MASTER_GUIDE.md)
->
-> TLS integration in the new workflow is still deferred, so keep this folder as reference material only until the final cutover plan is completed.
+TLS is implemented in the config-driven release workflow. Manage root domains and hostnames in [../config/stack.yaml](../config/stack.yaml), then use the commands below. See the [production runbook](../readme/PROD_RUNBOOK.md) for server preparation and deployment.
 
-**Industry-grade free SSL certificates using Let's Encrypt**
-
-## 📂 Files
+## Active Files
 
 | File | Purpose |
-|------|---------|
-| `domains.conf` | **Configuration** - Edit this to manage domains and email |
-| `setup-ssl.sh` | **Setup/Update** - Obtains or expands certificates (run as sudo) |
-| `deploy-ssl.sh` | **Deploy** - Activates HTTPS configuration |
-| `check-ssl.sh` | **Status** - Checks certificate details and expiry |
-| `bsingh-ssl.conf` | Nginx HTTPS template |
-| `docker-compose.prod-ssl.yml` | SSL-enabled Docker Compose |
+|---|---|
+| [certbot-run.sh](certbot-run.sh) | Issue or renew certificates from `stack.yaml`; reload the current edge afterward |
+| [ensure-fallback-cert.sh](ensure-fallback-cert.sh) | Optional self-signed fallback for missing certificate paths |
+| [domains.conf](domains.conf) | Generated hostname list; regenerate rather than editing it |
+| [../scripts/ssl/generate-domains-conf.mjs](../scripts/ssl/generate-domains-conf.mjs) | Generate `domains.conf` from ingress |
 
----
+## Current Commands
 
-## 🚀 Quick Start
-
-### 1. Configure
-Open `ssl-setup/domains.conf` and set your email and domains:
+From the local repo:
 
 ```bash
-EMAIL="your-email@example.com"
-DOMAINS=(
-    "domain1.com"
-    "sub.domain1.com"
-)
+npm run ssl:generate-domains
+npm run ssl:generate-domains:dry
 ```
 
-### 2. Setup (or Update)
-Run this whenever you change `domains.conf` or for first-time setup:
+From the server's `/opt/brijesh-infra` directory, with current `config/stack.yaml`, `ssl-setup/`, Node, and the `yaml` dependency installed:
 
 ```bash
-cd ssl-setup
-sudo ./setup-ssl.sh
+sudo bash ssl-setup/certbot-run.sh --grouped
+sudo bash ssl-setup/certbot-run.sh --grouped --dry-run
+sudo certbot certificates
 ```
 
-### 3. Deploy
-Activate the SSL configuration:
+Grouped issuance uses each root's configured `cert_name`, matching the paths rendered into production Nginx configuration. It includes the ingress hostnames under that root. The default command without `--grouped` issues per-host certificates; its certificate names can differ from the configured release paths.
+
+`--domain <host>` is single-host mode, including when `--grouped` is also supplied. It does not select a whole root-domain certificate group. Use grouped issuance for the release's multi-host certificates.
+
+Set `CLOUDFLARE_API_TOKEN` in the server repo's `.env` or environment. DNS must already be configured. The script can install Certbot and its Cloudflare plugin if missing. Its dry run avoids certificate issuance but can still prepare dependencies and credential files.
+
+Expiry skipping defaults to 120 days; `--skip-days N` changes it. Check certificate SANs after adding hosts: expiry skipping alone does not establish that a newly added host is covered. Use the script's renewal/force flags deliberately when a certificate must be expanded.
+
+## Renewal
+
+Check the actual server timer and deploy hook; `certbot-run.sh` is not itself a scheduler:
 
 ```bash
-./deploy-ssl.sh
+sudo systemctl list-timers --all | grep certbot
+sudo ls -l /etc/letsencrypt/renewal-hooks/deploy/
 ```
 
----
+After renewal, verify or reload the running edge with the current release's compose file. See [OPERATIONS.md](../readme/OPERATIONS.md) for the active release path. A self-signed fallback only enables Nginx startup; it does not provide a trusted certificate.
 
-## 🔄 Common Tasks
+## Legacy Reference
 
-### Add a New Domain
-1. Add the domain to `ssl-setup/domains.conf`.
-2. Run `sudo ./setup-ssl.sh` (this will automatically expand the certificate).
-3. Run `./deploy-ssl.sh` to update Nginx.
+`setup-ssl.sh`, `deploy-ssl.sh`, `add-domain.sh`, `bsingh-ssl.conf`, `domains-multi.conf`, and `docker-compose.prod-ssl.yml` belong to the previous manual flow. Their presence does not make them the current deployment entrypoint. Leave them in place until their callers and server hooks are checked.
 
-### Check Status
-View certificate expiry and domains:
-```bash
-./check-ssl.sh
-```
-
-### Manual Renewal
-Certificates renew automatically. To test or force renewal:
-```bash
-# Test
-sudo certbot renew --dry-run
-
-# Force
-sudo certbot renew --force-renewal
-```
+The [dated documentation archive](../readme/archive/2026-10-15-pre-doc-refresh/README.md) preserves the old SSL README and cleanup instructions. Removing that archive later does not remove active SSL scripts or certificates.

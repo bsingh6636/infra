@@ -1,84 +1,36 @@
-# TODO — Post-Production Checklist
+# Follow-Up Checklist
 
-Findings from production-readiness audit (2026-05-07).
-Infisical is the secret source in live — `.env` is local-only and not a live concern.
+Refreshed 2026-10-15 against the current config and scripts. Deployment completion is intentionally not inferred from a commit. The [status guide](readme/STATUS_AND_DEFERRED.md) describes implemented behavior and limits.
 
----
+## Municipal Migration
 
-## CRITICAL — Do Soon After Going Live
+- [ ] Complete the cutover and checks in [MUNICIPAL_MIGRATION.md](readme/MUNICIPAL_MIGRATION.md).
+- [ ] Confirm five isolated municipal containers have the configured ports, separate media mounts, and stable memory use under the 192m limits.
+- [ ] Confirm the shared group's PM2 list contains only `cors-api` and `getdata`.
+- [ ] Verify known API routes, existing media, test uploads, and the required rollback images/artifacts.
 
-- [ ] **Merge `refactor` → `master`**
-  `master` has 3 unmerged commits (legacy port fixes). `refactor` is the live system. Resolve divergence before next deploy.
+## Reliability And Recovery
 
-- [ ] **Add `healthcheck` directives to `docker-compose.prod.yml`**
-  Docker only restarts dead containers, not hung ones. Add `healthcheck` per service so hung processes get killed and restarted.
+- [ ] Add application health checks and alerting/recovery behavior. Docker health status alone does not restart a hung but running process.
+- [ ] Add CI checks for validation, regression tests, and fixture builds, then design the deployment trigger.
+- [ ] Automate old release-directory retention. Docker image/build-cache pruning already runs during server deploy; `release_retention: 10` does not prune directories.
+- [ ] Preserve or recover rollback images before unused-image pruning makes a previous release unavailable.
+- [ ] Verify the actual server's certificate renewal timer and Nginx reload hook, including a controlled renewal test.
+- [ ] Schedule off-server backups of all municipal media, Sahayog uploads, and application databases; verify restoration independently.
+- [ ] Document full server/database recovery and credential rotation.
+- [ ] Monitor disk, restart counts, service response health, and memory after deployments.
 
-- [ ] **Validate Infisical pull before build/deploy**
-  `npm run validate` should fail hard if required secrets are missing. Currently no guard — a failed pull silently produces an empty env.
+## Follow-Up Improvements
 
-- [ ] **Test SSL cert renewal end-to-end**
-  `certbot-run.sh` exists but renewal hasn't been verified in a real expiry cycle. Set a calendar reminder to manually trigger renewal test within 60 days.
+- [ ] Derive municipal management/deploy groups from `stack.yaml`, or keep the two fixed service lists explicitly synchronized.
+- [ ] Decide whether Codify should use a real exported 404 instead of its current SPA homepage fallback.
+- [ ] Define how in-place static updates should be tracked against release lock hashes and rollback snapshots.
+- [ ] Reconcile the unused `project.live_symlink` with the active `/opt/brijesh-infra/current` path.
+- [ ] Audit old compose/Nginx/SSL scripts and server renewal hooks before removing runtime legacy files. Keep active `certbot-run.sh`, `ensure-fallback-cert.sh`, and hostname generation.
+- [ ] Assign owners and dates to deferred work.
 
----
+## Temporary Documentation Cleanup
 
-## MAJOR — Before Scaling / Team Use
+- [ ] After migration and documentation verification, remove [the dated archive](readme/archive/2026-10-15-pre-doc-refresh/README.md) and its links in a separate commit, following its checklist. Preserve production data and usable rollback releases; this is documentation cleanup only.
 
-- [ ] **Add CI/CD (GitHub Actions)**
-  - `validate.yml` — run `npm run validate` on every PR/push
-  - `build-and-test.yml` — validate config, run stub builds
-  - `deploy-prod.yml` — triggered on git tag, runs publish + server deploy
-  - Add Infisical API token as GitHub secret
-
-- [ ] **Write `DISASTER_RECOVERY.md`**
-  Document: server failure recovery on new hardware, MongoDB restore, which services are critical vs. non-critical.
-
-- [ ] **Write `SECURITY.md`**
-  Document: what to do if credentials are compromised, rotation procedure per service, who to notify.
-
-- [ ] **Write `DATABASE.md`**
-  MongoDB backup procedure before deploys, restore procedure, schema change runbook per service (cors-api, subsnepal-api, municipal-api).
-
-- [ ] **Set up monitoring**
-  Minimum viable: weekly `docker stats` check, log scan for errors, disk space (`df -h`).
-  Longer term: Prometheus + Grafana, or at least an uptime monitor.
-
----
-
-## MINOR — Nice to Have
-
-- [ ] **Add centralized logging**
-  Logs currently live only in containers (json-file, 10MB rotation). Consider Loki + Grafana or Fluent Bit → Elasticsearch for searchable, persistent logs.
-
-- [ ] **Automate release pruning**
-  Deferred in `STATUS_AND_DEFERRED.md`. Old releases accumulate in `/opt/brijesh-infra/releases/`. Add a cron or post-deploy step to prune beyond `release_retention: 10`.
-
-- [ ] **Switch Docker image tags from `:latest` to git SHA**
-  Mitigated by `--pull never` in prod compose, but using content-addressable tags (e.g. `image: bsingh6636/bsingh-nginx:abc123`) makes releases truly reproducible.
-
-- [ ] **Monitor memory limits under real load**
-  Current limit is 384MB per backend container. Run `docker stats` after first week in production and adjust if needed.
-
-- [ ] **Add `TROUBLESHOOTING.md`**
-  Common failures: container won't start, cert renewal fails, PM2 process crash, nginx 502, env var not picked up.
-
-- [ ] **Write `MONITORING.md`**
-  Document the manual monitoring procedure: what to check, how often, what's a warning vs. an incident.
-
-- [ ] **Delete legacy files in `ssl-setup/`**
-  Keep `certbot-run.sh` and `domains.conf` (both active). Delete: `setup-ssl.sh`, `bsingh-ssl.conf`, `add-domain.sh`, `deploy-ssl.sh`, `domains-multi.conf`, `docker-compose.prod-ssl.yml`.
-
-- [ ] **Assign owners + dates to deferred items**
-  Items in `STATUS_AND_DEFERRED.md` have no assigned owner or target date. Move to GitHub Issues or a planning tool.
-
----
-
-## Already Good — No Action Needed
-
-- Infisical integrated and documented
-- Release snapshot system with rollback working
-- TLS/Let's Encrypt automation in place
-- Resource limits, restart policies, log rotation configured
-- `stack.yaml` as single source of truth
-- `readme/` documentation comprehensive through Phase 7
-- All bug fixes documented in `STATUS_AND_DEFERRED.md`
-- Local preview + smoke test workflow thorough (`PROD_RUNBOOK.md`)
+Prior phase-specific claims, branch-merge notes, and obsolete commands are retained in that archive with their original commit references instead of being presented as current tasks.

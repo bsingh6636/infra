@@ -1,190 +1,131 @@
 # Releases And Rollback
 
-## Purpose
+Publishing snapshots already-generated artifacts. Applying or deploying starts the selected snapshot; committing or pushing Git changes does neither.
 
-The release system creates versioned local runtime snapshots so deployment stays reversible.
-
-Each release contains:
-
-- rendered `compose.yaml`
-- rendered `nginx.conf`
-- `release.lock.yaml`
-- edge-static assets
-- isolated service build contexts
-- isolated backend env files
-- shared-node build contexts
-
-## Release Folder Layout
+## Release Contents
 
 ```text
 generated/runtime-state/
 ├── current -> releases/<release-id>
 ├── data/
-└── releases/
-    └── <release-id>/
-        ├── compose.yaml
-        ├── nginx.conf
-        ├── release.lock.yaml
-        ├── edge-static/
-        ├── isolated/
-        ├── isolated-env/
-        └── shared/
+└── releases/<release-id>/
+    ├── compose.yaml
+    ├── nginx.conf
+    ├── release.lock.yaml
+    ├── edge-static/
+    ├── isolated/          # omitted in registry mode
+    ├── isolated-env/
+    ├── shared/            # omitted in registry mode
+    └── shared-env/
 ```
 
-## Publish
+A non-registry release contains source/build contexts that Docker can build. A registry release references pushed image tags. Each municipal backend has its own env file and lock entry, while all five point to the single `municipal-backend` context or image. Persistent media and uploads live under the data root, outside releases.
 
-Publish collects the already-generated build outputs and snapshots them into a release directory.
+`release.lock.yaml` records the release ID, creation time, port, artifact hashes or image references, env-file hashes, and mount metadata. Treat published directories as snapshots. The static deployment shortcut described below deliberately changes the current directory in place, so its content can subsequently differ from the original lock hashes and tarball.
 
-Command:
+## Build Before Publish
+
+For production, regenerate real artifacts:
 
 ```bash
-npm run release:publish -- --release my-release --port 8091
+npm run validate
+npm test
+npm run build:edge-static
+npm run build:isolated-preview
+npm run build:shared-node-preview
 ```
 
-This command expects that the earlier phase builders have already been run.
+For a local routing-only check, the three builders have `:stub` variants. Stub builds replace generated outputs; run real builders again before publishing production. Publish checks that inputs exist, not that they are recent or non-stub.
 
-Typical prep:
+Use `-- --service <name>` for a single static or isolated service when other artifacts are current. Rebuild the full shared-node group when one of its services or membership changes. Rebuild all affected municipal env files after runtime configuration changes, even though the image is shared.
+
+## Local Publish, Apply, Rollback
 
 ```bash
-npm run build:edge-static:stub
-npm run build:isolated-preview:stub
-npm run build:shared-node-preview:stub
-npm run release:publish -- --release my-release --port 8091
+npm run release:publish -- --release local-check-01 --port 8091
+npm run release:apply -- --release local-check-01
 ```
 
-## Apply
-
-Apply builds and runs the published release locally, then updates `current`.
-
-Command:
+Apply creates local storage directories from `stack.yaml`, starts the release with `up -d --remove-orphans --pull missing`, then repoints `generated/runtime-state/current`. There is no explicit `--build`; Compose can perform a required initial build, but apply does not request a forced rebuild of existing images.
 
 ```bash
-npm run release:apply -- --release my-release
-```
-
-What it does:
-
-- ensures the local data directories exist (from `stack.yaml` storage entries)
-- runs `docker compose up -d --remove-orphans --pull never` from that release
-- updates `generated/runtime-state/current`
-
-> `--pull never` is intentional — apply never pulls or rebuilds images. The release snapshot is treated as immutable.
-
-## Rollback
-
-Rollback re-applies an older release and then repoints `current`.
-
-Command:
-
-```bash
-npm run release:rollback -- --release older-release
-```
-
-If you omit `--release`, the script chooses the newest release that is not the current one.
-
-## Release Lock
-
-`release.lock.yaml` records:
-
-- release id
-- created time
-- port
-- artifact hashes
-- local data mount info
-
-Use it as the summary of what was published into that release.
-
-## Local Validation Flow
-
-### 1. Publish First Release
-
-```bash
-npm run release:publish -- --release phase6-r1 --port 8091
-```
-
-### 2. Apply First Release
-
-```bash
-npm run release:apply -- --release phase6-r1
-```
-
-### 3. Check Current Pointer
-
-```bash
+npm run release:publish -- --release local-check-02 --port 8091
+npm run release:apply -- --release local-check-02
+npm run release:rollback -- --release local-check-01
 readlink generated/runtime-state/current
 ```
 
-### 4. Check Routes
+Local rollback uses `up -d --remove-orphans --pull never` and repoints `current`; it does not request an explicit image rebuild or pull. If `--release` is omitted, it selects the lexically newest available release other than the current one. Retain the required images or build inputs and check their availability before relying on rollback. Local data must survive both switches; see [MEDIA_STORAGE.md](MEDIA_STORAGE.md).
+
+## Production Publish
+
+Normal production releases bundle build contexts and render TLS, ports 80/443, and certificate mounts:
 
 ```bash
-curl -i -H 'Host: brijeshkushwaha.com.np' http://127.0.0.1:8091/
-curl -i -H 'Host: api-cors-proxy.brijeshkushwaha.com.np' http://127.0.0.1:8091/
-curl -i -H 'Host: subsnepal.brijeshkushwaha.com.np' http://127.0.0.1:8091/api/
-curl -i -H 'Host: admin.municipa.brijeshkushwaha.com.np' http://127.0.0.1:8091/media/
-```
-
-### 5. Publish Second Release
-
-```bash
-npm run release:publish -- --release phase6-r2 --port 8091
-npm run release:apply -- --release phase6-r2
-```
-
-### 6. Roll Back
-
-```bash
-npm run release:rollback -- --release phase6-r1
-```
-
-## What To Expect
-
-- `current` should move from `phase6-r1` to `phase6-r2` and back again
-- local data in `generated/runtime-state/data/` should survive release switches
-- edge, shared-node, and isolated services should all be rebuilt from the selected release snapshot
-
-## Production Release
-
-A production release bakes TLS nginx config and wires the compose file for port 443 + cert mounts.
-
-```bash
-# Publish a TLS-enabled release snapshot
 npm run release:publish:prod -- --release prod-YYYYMMDD-01
-
-# Push to server and deploy
-./scripts/server/push-release.sh prod-YYYYMMDD-01 ubuntu@SERVER_IP
+./scripts/server/push-release.sh prod-YYYYMMDD-01 aws
 ```
 
-### One-Command Shortcuts
-
-Two npm scripts wrap the steps above so you don't have to hand-copy the release id:
+Registry mode builds and pushes one image per isolated image context and shared group, then publishes image references:
 
 ```bash
-# Publish a new release AND deploy it, in one shot (release id auto-generated as UTC timestamp)
-npm run server:ship             # deploys to the `aws` SSH alias by default
+npm run release:publish:prod:registry -- --release prod-YYYYMMDD-01
+./scripts/server/push-release.sh prod-YYYYMMDD-01 aws
+```
+
+The package script uses registry prefix `bsingh6636`. Docker registry access and compatible server architecture are prerequisites. `edge-static` assets and per-service env files are bundled in both modes.
+
+## Shortcuts
+
+```bash
+# Publish existing generated artifacts and deploy, using a UTC timestamp ID
 npm run server:ship -- aws
-npm run server:ship -- ubuntu@1.2.3.4
 
-# Package + deploy a release that was already published (defaults to the latest one)
-npm run server:deploy [-- <release-id>]
+# Deploy an existing published release; SERVER comes from .env or environment
+npm run server:deploy -- prod-YYYYMMDD-01
 ```
 
-`server:deploy` reads the target server from `SERVER=user@host` in `.env` (falls back to erroring if unset). `server:ship` takes the server as a positional arg (default `aws`, an SSH config alias).
+`server:ship` defaults to SSH alias `aws`. `server:deploy` can choose the lexically newest published entry if no release ID is supplied; an explicit ID avoids ambiguity. Neither shortcut clones or builds application source before publishing.
 
-The server-side deploy script (`deploy-on-server.sh`) does:
-- expands the tarball under `/opt/brijesh-infra/releases/<id>/`
-- stops the previous stack
-- starts the new stack with `--pull never`
-- flips `/opt/brijesh-infra/current` symlink
+## What Server Deployment Does
 
-For rollback on the server, `deploy-on-server.sh` is not persisted on the server — copy `rollback-on-server.sh` up first:
+The server uses project `brijesh-infra` and `/opt/brijesh-infra/{releases,current,data,incoming}`. `project.live_symlink` in the config is currently unused; the server scripts use `/opt/brijesh-infra/current`.
+
+`deploy-on-server.sh` prepares data directories, prunes unused Docker images/build cache, and expands the incoming tarball unless that release directory already exists. For a full non-registry release it runs `up -d --build --remove-orphans --pull missing`; registry releases are pulled before starting. It does not first shut down the whole existing stack during a normal deployment.
+
+It then runs `nginx -t` inside edge and repoints `current` only if that check succeeds. On Nginx validation failure it attempts to restore the previous compose configuration. This is not a general health check or an automatic rollback for every failed command: test application endpoints and mounts separately.
+
+## Targeted Municipal Deployment
+
 ```bash
-scp scripts/server/rollback-on-server.sh user@server-ip:/tmp/
-ssh user@server-ip "sudo bash /tmp/rollback-on-server.sh prod-YYYYMMDD-00"
+./scripts/server/push-release.sh prod-YYYYMMDD-municipal aws municipal
 ```
 
-## What Is Still Deferred
+The fixed `municipal` alias deploys the five municipal containers plus `shared-low-node`, then recreates edge. Regenerate both isolated and shared-node artifacts first so old municipal PM2 processes are removed. Targeted deployment uses `--no-deps`; it does not apply other services or start new dependencies. Use the full deployment for wider changes. The [migration guide](MUNICIPAL_MIGRATION.md) covers ordering, the possible interruption, and verification.
 
-- release retention/prune automation
-- CI/CD integration
+## Single Static Deployment
 
-See [`STATUS_AND_DEFERRED.md`](./STATUS_AND_DEFERRED.md) for full status.
+```bash
+npm run deploy:edge-static -- municipal-admin
+```
+
+This builds the named frontend from its configured source/ref, uploads an archive, extracts it into staging, replaces the service's live directory, and reloads edge. Deleted pages/assets disappear. Extraction or reload failure preserves/restores the previous directory. Other static service directories are left in place.
+
+This changes the current release in place. It does not render ingress or create a new release/lock snapshot. Use a normal release for new hosts/services or when a distinct rollback point is required.
+
+## Production Rollback
+
+Copy and run the rollback script with the prior release ID:
+
+```bash
+scp scripts/server/rollback-on-server.sh aws:/tmp/
+ssh aws 'sudo bash /tmp/rollback-on-server.sh prod-YYYYMMDD-00'
+```
+
+The server rollback script stops the current stack, starts the target with `--pull never`, and repoints `current`. It can cause downtime. It does not force a rebuild or fetch missing images. Deployment pruning may remove images belonging to a non-running release; verify availability or restore/pull/build the target's required images before the rollback. Keep media backups separate and preserve the data root.
+
+## Retention And Old References
+
+`release_retention: 10` is configured but not enforced. Docker pruning does not remove old release directories. Monitor both kinds of disk usage and retain usable rollback artifacts.
+
+The [temporary documentation archive](archive/2026-10-15-pre-doc-refresh/README.md) is independent of production releases. Its later cleanup removes docs only, after migration and documentation verification. See [STATUS_AND_DEFERRED.md](STATUS_AND_DEFERRED.md) for remaining work.

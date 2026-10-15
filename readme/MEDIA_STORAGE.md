@@ -1,165 +1,80 @@
-# Municipal Media Storage
+# Persistent Media And Upload Storage
 
-## Why This Is Different
+Municipal media and Sahayog uploads must survive container replacement, deployment, and rollback. Release snapshots contain configuration and application artifacts; they do not contain these uploaded files.
 
-Most services in this repo are stateless. If you rebuild or replace them, you can recreate their containers from source and env files.
+## Municipal Mounts
 
-`municipal-api` is different because it uses persistent local files for media storage.
+Each municipal backend is configured as an isolated container. All mount their own media directory at `/srv/app/media`.
 
-That means:
+| Service | Production host path | Local host path |
+|---|---|---|
+| municipal-api | `/opt/brijesh-infra/data/municipal/media` | `generated/runtime-state/data/municipal/media` |
+| siranchowk-municipal | `/opt/brijesh-infra/data/siranchowk/media` | `generated/runtime-state/data/siranchowk/media` |
+| ratnagar-municipal | `/opt/brijesh-infra/data/ratnagar/media` | `generated/runtime-state/data/ratnagar/media` |
+| madhyabindu-municipal | `/opt/brijesh-infra/data/madhyabindu/media` | `generated/runtime-state/data/madhyabindu/media` |
+| devghat-municipal | `/opt/brijesh-infra/data/devghat/media` | `generated/runtime-state/data/devghat/media` |
 
-- the files must survive deploys
-- the files must survive rollbacks
-- backups matter
-- permissions matter
-- migration to a new server must copy the data explicitly
+These host paths are retained during the [municipal migration](MUNICIPAL_MIGRATION.md). The old shared-node container paths are documented there for historical comparison. Use `/srv/app/media` for the configured isolated containers.
 
-## Current Local Phase 6 Path
+Sahayog mounts `/opt/brijesh-infra/data/sahayog/uploads` at `/srv/app/uploads`; the default local equivalent is `generated/runtime-state/data/sahayog/uploads`. Back up those uploads separately as well. Redis has a `/data` mount but is currently configured with AOF and RDB persistence disabled; treat it as cache-only soft state.
 
-Local release validation uses:
+## Directories And Permissions
 
-```text
-generated/runtime-state/data/municipal/media
-```
-
-Inside the container it is mounted at:
-
-```text
-/srv/shared/municipal-api/media
-```
-
-## Intended Production Path
-
-The config still models the final production storage path as:
-
-```text
-/opt/brijesh-infra/data/municipal/media
-```
-
-Do not switch to that path until the final production cutover phase.
-
-## Permissions
-
-For the local Phase 6 runtime, the apply script creates the media directory and sets:
-
-- mode: `775`
-
-Check it with:
+Local `release:apply` creates storage directories from `stack.yaml` with mode `775`. The server deployment script creates the current municipal and Sahayog host directories with mode `775`. Ownership still needs to allow the actual container user to read and write.
 
 ```bash
-stat -f '%Sp %N' generated/runtime-state/data/municipal/media
+# On the server
+ls -ld /opt/brijesh-infra/data/{municipal,siranchowk,ratnagar,madhyabindu,devghat}/media
+
+docker compose -p brijesh-infra -f /opt/brijesh-infra/current/compose.yaml   exec -T municipal-api sh -c 'id; ls -ld /srv/app/media'
 ```
 
-For a production-style host path later, use a pattern like:
+Match ownership to the actual runtime UID/GID when provisioning or restoring data. Mount only the media/upload directory, rather than replacing the application directory. Release cleanup must not delete `/opt/brijesh-infra/data` or its local equivalent.
+
+## Local Persistence Check
+
+Use an integrated local release after `release:apply`; isolated mode previews do not attach these production media mounts.
 
 ```bash
-sudo mkdir -p /opt/brijesh-infra/data/municipal/media
-sudo chown -R <runtime-user>:<runtime-group> /opt/brijesh-infra/data/municipal/media
-sudo chmod 775 /opt/brijesh-infra/data/municipal/media
+docker compose -p infra-local-release -f generated/runtime-state/current/compose.yaml   exec -T municipal-api sh -c 'printf test-data > /srv/app/media/infra-probe.txt'
+cat generated/runtime-state/data/municipal/media/infra-probe.txt
 ```
 
-If you do not know the final runtime UID/GID yet, stop and verify that first before production cutover.
+Apply a second release, roll back, and confirm the host file and its contents remain. Repeat with each municipal service and its matching host directory. Remove the probe after validation. For production, prefer reading an existing known media file and use an agreed test upload to check write permissions.
 
-## Safe Bind-Mount Rules
+## Back Up All Municipal Media
 
-Use these rules:
-
-- mount only the media directory, not the whole app directory
-- mount it to a dedicated media path inside the container
-- create the host directory before starting the container
-- confirm permissions before first write
-- never delete the host path during release cleanup
-
-## Local Persistence Validation
-
-This was validated in Phase 6 using a probe file.
-
-Equivalent check:
+Run on the production server before migration and regularly while uploads are active:
 
 ```bash
-docker compose -p infra-local-release -f generated/runtime-state/current/compose.yaml exec -T shared-low-node sh -lc 'printf test-data > /srv/shared/municipal-api/media/probe.txt'
-cat generated/runtime-state/data/municipal/media/probe.txt
+sudo tar -czf /opt/brijesh-infra/municipal-media-backup-$(date +%Y%m%d-%H%M%S).tar.gz   -C /opt/brijesh-infra/data   municipal/media siranchowk/media ratnagar/media madhyabindu/media devghat/media
 ```
 
-Expected result:
+Copy the selected archive off the server. For a consistent backup, pause writes while collecting files, or use a storage snapshot suited to the application. Include Sahayog uploads in their own backup procedure. Application databases require separate backups.
 
-- the host file exists
-- content matches what was written inside the container
-- the file survives `release:apply` to another release
-- the file survives `release:rollback`
+For local test data, use the same directory list with `-C generated/runtime-state/data`. Restore an archive into an empty temporary directory first and verify sample files and counts. A backup file alone does not prove recovery works.
 
-## Backups
+## Move To Another Server
 
-You must back up this directory separately from stateless release artifacts.
-
-Simple local tar backup example:
-
-```bash
-tar -czf municipal-media-$(date +%F).tgz -C generated/runtime-state/data municipal/media
-```
-
-Production-style example later:
-
-```bash
-tar -czf municipal-media-$(date +%F).tgz -C /opt/brijesh-infra/data municipal/media
-```
-
-Minimum recommendation:
-
-- daily backup if uploads are active
-- keep multiple restore points
-- test at least one restore on a non-production path
-
-## Migration To Another Server
-
-Release snapshots do not include the media files. You must copy them separately.
-
-Example:
+Copy each persistent directory separately from the release artifacts. On Linux hosts with suitable permissions, one municipal example is:
 
 ```bash
 rsync -aHAX /opt/brijesh-infra/data/municipal/media/ user@new-server:/opt/brijesh-infra/data/municipal/media/
 ```
 
-After migration:
-
-- verify file count
-- verify a few sample files
-- verify permissions on the destination
-- verify the container can still write to the path
+Repeat for siranchowk, ratnagar, madhyabindu, devghat, and Sahayog uploads. Check file counts, representative media, ownership, and container write access before directing traffic to the new server.
 
 ## Disk Monitoring
 
-Check both usage and free space:
-
 ```bash
-du -sh generated/runtime-state/data/municipal/media
+# Production
+du -sh /opt/brijesh-infra/data/{municipal,siranchowk,ratnagar,madhyabindu,devghat}/media
+du -sh /opt/brijesh-infra/data/sahayog/uploads
+df -h /opt/brijesh-infra/data
+
+# Local
+du -sh generated/runtime-state/data/*
 df -h generated/runtime-state/data
 ```
 
-Production-style later:
-
-```bash
-du -sh /opt/brijesh-infra/data/municipal/media
-df -h /opt/brijesh-infra/data
-```
-
-Watch for:
-
-- unexpected growth
-- low free disk
-- files owned by the wrong user
-- write failures inside the app
-
-## When To Move `municipal-api` To Isolated
-
-It is currently grouped only as a short-term tradeoff.
-
-Move it from `shared-node` to `isolated` when any of these becomes true:
-
-- media traffic increases noticeably
-- group restarts become disruptive
-- disk I/O causes noisy-neighbor issues
-- you want stronger failure boundaries
-- you need a separate deploy cadence for municipal
-
-When that happens, update `config/stack.yaml`, preview the isolated flow again, then publish and apply a new release.
+Watch for growth, low free space, unexpected ownership, and failed writes. Monitor these independently of image/build-cache pruning and old release cleanup.

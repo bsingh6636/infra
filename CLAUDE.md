@@ -44,6 +44,8 @@ resource limits. The image bakes defaults from whichever sharing service is list
 env file and override them at runtime. Used by the five municipal backends, which run the same repo
 per tenant.
 
+Use the same source/context, build strategy, and start command for services sharing an image. Only `cors-api` and `getdata` remain in the current `low-node` group. The full configured topology and previous topology are compared in [readme/MUNICIPAL_MIGRATION.md](./readme/MUNICIPAL_MIGRATION.md); check the production release separately before assuming cutover is complete.
+
 Full walkthroughs for adding/moving/removing a service: [`readme/SERVICE_MANAGEMENT.md`](./readme/SERVICE_MANAGEMENT.md).
 
 ### Validation rules enforced by `npm run validate` (`scripts/validate/checks/*.mjs`)
@@ -83,6 +85,7 @@ npm run infisical:pull:development -- --only=<service>   # scope to one service
 ```bash
 npm run validate            # local structural validation
 npm run validate:remote     # + check source repos/refs are reachable
+npm test                   # deployment regressions using local fixtures
 ```
 
 ### Build
@@ -130,6 +133,20 @@ npm run server:ship [-- <server>]     # publish (auto-generated UTC-timestamp re
 npm run server:deploy [-- <release-id>]   # package + deploy an *already published* release (defaults to latest); server read from SERVER in .env
 ```
 
+These shortcuts consume generated artifacts; they do not rebuild application sources. After stub previews, restore real build outputs before production publishing. Local apply uses `--pull missing` without an explicit `--build`; local rollback and server rollback use `--pull never`. Server rollback stops the current stack first, and Docker pruning can remove prior unused images. See [readme/RELEASES_AND_ROLLBACK.md](./readme/RELEASES_AND_ROLLBACK.md).
+
+Municipal and single-static commands:
+
+```bash
+./scripts/server/push-release.sh <id> aws municipal
+npm run municipal:status
+npm run municipal:restart -- ratnagar
+npm run municipal:logs -- devghat
+npm run deploy:edge-static -- municipal-admin
+```
+
+Before first municipal cutover, rebuild all isolated services and the whole shared group. The municipal target also rebuilds `shared-low-node` to drop its former municipal PM2 processes, then recreates edge; a short interruption is possible. Keep its fixed service list and the list in `manage-municipal.sh` synchronized when adding a municipality. Static redeployment replaces the site's directory in the current release and restores it on extraction/reload failure; it does not create a new lock snapshot or update ingress.
+
 Server-side rollback (script must be copied up first — it is not persisted on the server):
 
 ```bash
@@ -156,7 +173,7 @@ sudo bash ssl-setup/ensure-fallback-cert.sh            # self-signed fallback so
 Production runs on AWS EC2. `.env`'s `SERVER=ubuntu@<ip>` and the SSH config alias `aws` both point
 at it — there is no GCP/Azure infra despite what any doc predating this note might say. Server-side
 layout: `/opt/brijesh-infra/{releases,current,data,incoming}` — `current` is a symlink to the active
-release directory, flipped atomically by `deploy-on-server.sh`.
+release directory, repointed after Nginx validation by `deploy-on-server.sh`.
 
 Known dead config: `config/stack.yaml`'s `project.live_symlink` key
 (`/opt/brijesh-infra/live/current`) is parsed by `scripts/lib/normalize-stack.mjs` but never
@@ -164,17 +181,21 @@ consumed anywhere — the actual symlink path is hardcoded as `/opt/brijesh-infr
 `scripts/server/deploy-on-server.sh`. Trust the hardcoded path, not the config key, until this is
 reconciled.
 
-## Root Domains Currently Live
+## Configured TLS Domains
 
-`brijeshkushwaha.com.np`, `subsnepal.com`, `brijeshdev.space`, `brijeshhq.com`, `codifyteam.com` —
+`brijeshkushwaha.com.np`, `subsnepal.com`, `brijeshdev.space`, `style-work.brijeshhq.com`, `brijeshhq.com`, `codifyteam.com`, `nepalfundme.com` —
 defined under `tls.root_domains` in `stack.yaml`. Check that section (not this file) for the
 current, authoritative list — it changes more often than this doc will be updated.
 
-## Services Currently Staged But Disabled
+## Enabled And Disabled Datastore Examples
 
-`otp-api` and `redis` exist in `stack.yaml` with `enabled: false` — they're the reference examples
-for `build.strategy: dockerfile` and `deploy.mode: image` respectively, not yet live. `otp-api`'s
-`depends_on: [redis]` is commented out to match.
+`otp-api` remains disabled and demonstrates `build.strategy: dockerfile`. Redis is enabled as an image-mode service and is a dependency of `subsnepal-api`. Its current command disables AOF/RDB persistence and bounds memory with LRU eviction; the data mount does not make it durable. All five municipal media mounts use `/srv/app/media` in their isolated containers; Sahayog also has persistent uploads. See [readme/MEDIA_STORAGE.md](./readme/MEDIA_STORAGE.md).
+
+TLS is implemented. Use grouped certificate issuance to match configured `cert_name` paths; `--domain` selects only one hostname, even alongside `--grouped`. Certificate renewal scheduling and deploy hooks must be checked on the server. [ssl-setup/README.md](./ssl-setup/README.md) identifies active and legacy tools.
+
+## Temporary Old Documentation
+
+[The dated archive](./readme/archive/2026-10-15-pre-doc-refresh/README.md) preserves both committed documentation baselines with checksums. Keep it until migration and documentation checks pass; its README explains removal in a later cleanup commit. Archived instructions do not override current config or the active operator guides.
 
 ## For AI Agents Calling In From Another Repo
 

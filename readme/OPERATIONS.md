@@ -9,9 +9,11 @@ SSH in first: `ssh aws` (or whatever alias/host you have configured for the prod
 
 Knowing which container a service lives in matters — it dictates how you read logs.
 
+This map describes the configured stack. Check the active release and running processes to confirm the migration has been deployed; see [MUNICIPAL_MIGRATION.md](MUNICIPAL_MIGRATION.md).
+
 | Service | Mode | Container | Port (internal) |
 |---|---|---|---|
-| portfolio-web, ranju-web, cors-web, municipal-admin | edge-static | served directly by `brijesh-infra-edge-1` (static files) | n/a |
+| portfolio-web, ranju-web, cors-web, municipal-admin, sahayog-web, stylework-web, codify-web | edge-static | served directly by `brijesh-infra-edge-1` (static files) | n/a |
 | cors-api | shared-node | `brijesh-infra-shared-low-node-1` (via PM2) | 4301 |
 | getdata | shared-node | `brijesh-infra-shared-low-node-1` (via PM2) | 4302 |
 | municipal-api | isolated | `brijesh-infra-municipal-api-1` | 4303 |
@@ -21,6 +23,11 @@ Knowing which container a service lives in matters — it dictates how you read 
 | devghat-municipal | isolated | `brijesh-infra-devghat-municipal-1` | 4308 |
 | subsnepal-web | isolated | `brijesh-infra-subsnepal-web-1` | 80 (container) |
 | subsnepal-api | isolated | `brijesh-infra-subsnepal-api-1` | 9090 |
+| sahayog-api | isolated | `brijesh-infra-sahayog-api-1` | 4306 |
+| stylework-api | isolated | `brijesh-infra-stylework-api-1` | 4309 |
+| redis | image | `brijesh-infra-redis-1` (cache-only) | 6379 |
+
+`otp-api` is disabled. Frontends served by edge have no separate application containers.
 
 Quick check of what's running:
 ```bash
@@ -217,9 +224,11 @@ npm run release:publish:prod
 
 The `municipal` target deploys all five municipal containers and rebuilds `shared-low-node` to stop its former municipal PM2 processes before updating the edge.
 
+This can briefly interrupt municipal traffic while the old shared upstreams stop and edge is recreated. Follow [MUNICIPAL_MIGRATION.md](MUNICIPAL_MIGRATION.md) for backups and post-deployment checks.
+
 Or the one-command shortcut: `npm run server:ship` (publish + push + deploy in one shot). See [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md).
 
-With the rolling-restart logic in `deploy-on-server.sh`, only containers whose image content actually changed will restart — so other services keep running.
+Compose reconciles services with the selected release. Changed configuration, bind paths, or release image tags can recreate containers even when application source is unchanged. A targeted deployment explicitly recreates edge. Publish/deploy shortcuts do not rebuild application sources first.
 
 ---
 
@@ -247,11 +256,11 @@ cat /opt/brijesh-infra/releases/<release-id>/nginx.conf | grep -E "server_name|p
 # What certs exist + expiry dates
 sudo certbot certificates
 
-# Force renew everything (only if you know what you're doing)
+# Issue/renew grouped certificates, with the script's expiry skip
 sudo bash /opt/brijesh-infra/ssl-setup/certbot-run.sh --grouped
 
-# Re-issue one specific cert
-sudo bash /opt/brijesh-infra/ssl-setup/certbot-run.sh --domain subsnepal.com
+# Explicitly force grouped re-issuance when required
+sudo bash /opt/brijesh-infra/ssl-setup/certbot-run.sh --grouped --force-all
 
 # Verify a cert from outside (run from your Mac)
 echo | openssl s_client -connect subsnepal.com:443 -servername subsnepal.com 2>/dev/null \
@@ -260,9 +269,11 @@ echo | openssl s_client -connect subsnepal.com:443 -servername subsnepal.com 2>/
 
 If nginx is crash-looping after a deploy with `cannot load certificate`, the cert for that host doesn't exist yet — run certbot first.
 
+Check certificate SAN coverage for changed hosts and verify the renewal timer/reload hook on the server. Single-domain mode issues only that hostname, even if combined with `--grouped`. See [../ssl-setup/README.md](../ssl-setup/README.md).
+
 ---
 
-## Media (municipal-api file uploads)
+## Media (all municipal backends)
 
 Stored on the host, bind-mounted into the container.
 
@@ -271,15 +282,19 @@ Stored on the host, bind-mounted into the container.
 ls -la /opt/brijesh-infra/data/municipal/media/
 du -sh /opt/brijesh-infra/data/municipal/media/
 
-# Same path inside the container
-docker exec $(docker ps -qf name=shared-low-node) ls /srv/apps/municipal-api/media/
+# Path inside the isolated municipal container
+docker compose -p brijesh-infra -f /opt/brijesh-infra/current/compose.yaml \
+  exec -T municipal-api ls -ld /srv/app/media
 ```
 
-Backup the media folder before any risky migration:
+Back up all five municipal directories before migrating:
 ```bash
 sudo tar -czf /tmp/media-backup-$(date +%Y%m%d).tar.gz \
-  -C /opt/brijesh-infra/data/municipal/media .
+  -C /opt/brijesh-infra/data \
+  municipal/media siranchowk/media ratnagar/media madhyabindu/media devghat/media
 ```
+
+Copy the archive off-server and verify restoration. [MEDIA_STORAGE.md](MEDIA_STORAGE.md) maps every host path and also covers Sahayog uploads. Release snapshots do not include these files.
 
 ---
 
@@ -300,7 +315,9 @@ When something is returning 502 / not responding:
 6. **Is nginx routing to the right place?**
    `grep proxy_pass /opt/brijesh-infra/current/nginx.conf`
 7. **Can the edge container reach the upstream?**
-   `docker exec brijesh-infra-edge-1 wget -qO- http://shared-low-node:4303/`
+   `docker exec brijesh-infra-edge-1 wget -qO- http://municipal-api:4303/`
+
+For the shared Cors backend use `http://shared-low-node:4301/`; each municipal backend uses its own service name and port.
 
 ---
 

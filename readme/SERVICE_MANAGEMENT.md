@@ -19,22 +19,29 @@ The main sections you will touch are:
 - `ranju-web`
 - `cors-web`
 - `municipal-admin`
+- `sahayog-web`
+- `stylework-web`
+- `codify-web` (`codifyteam.com` and `www.codifyteam.com`)
 
 ### Isolated Services
 
 - `subsnepal-web`
 - `subsnepal-api`
+- `municipal-api`, `siranchowk-municipal`, `ratnagar-municipal`, `madhyabindu-municipal`, `devghat-municipal` (one shared image, five containers)
+- `sahayog-api`
+- `stylework-api`
 - `otp-api` (Spring Boot, built from the repo's own Dockerfile) — currently `enabled: false` in `stack.yaml`, staged but not live
 
 ### Shared-Node Services
 
 - `cors-api`
 - `getdata`
-- `municipal-api`
 
 ### Datastores (image mode)
 
-- `redis` (shared across services) — currently `enabled: false` in `stack.yaml`, staged but not live
+- `redis` — enabled, cache-only soft state; `subsnepal-api` depends on it. AOF and RDB persistence are disabled in the current config.
+
+These lists describe the current repository configuration. Use the active release and container status to check what has been deployed.
 
 ## Add A New Edge-Static Frontend
 
@@ -74,6 +81,8 @@ ingress:
       spa_fallback: true
 ```
 
+Edge-static auto-detection checks `dist`, `build`, then `out`; use an explicit `build.output_dir` when necessary. A Next.js export such as `codify-web` is served as files. Set `spa_fallback` to match the site's routing: enabling it serves `index.html` for unknown paths, including the current Codify configuration. If changing that behavior, update config and publish a new release.
+
 ## Add A New Isolated Backend
 
 Add:
@@ -106,6 +115,28 @@ services:
         - API_KEY
 ```
 
+The backend builder writes a separate env file for every service. It merges the declared dotenv files, overlays `runtime.env`, then sets `PORT` from `runtime.port`. Rebuild the affected services after changing those values; rebuilding only an image does not update another service's env artifact.
+
+## Share An Isolated Backend Image
+
+The municipal backends use:
+
+```yaml
+build:
+  shared_image: municipal-backend
+deploy:
+  mode: isolated
+runtime:
+  port: 4303
+  start: npm start
+  env:
+    MUNICIPAL_BACKEND_PORT: "4303"
+```
+
+Give other municipalities their own ports, env files, limits, and bind mounts. Use a shared image key only for compatible services with the same source/context, build strategy, and start command: the builder uses the first matching service to generate the shared context. Each container gets its own generated env file. Municipal media targets `/srv/app/media`; host paths remain separate.
+
+When adding a municipality, update both fixed service lists in `scripts/server/deploy-on-server.sh` (`municipal` alias) and `scripts/server/manage-municipal.sh`. Check the usage/help text for the affected commands too. See [MUNICIPAL_MIGRATION.md](MUNICIPAL_MIGRATION.md) for cutover and prior topology.
+
 ## Add A Backend With Its Own Dockerfile (any runtime)
 
 For services that are not plain Node (Spring Boot, Go, or a Node app that wants
@@ -122,9 +153,7 @@ Requirements:
 
 Per-service `resources:` limits apply to isolated and image services.
 
-Example (`otp-api` — this is the repo's actual staged example; it is currently
-`enabled: false` and its `depends_on: [redis]` line is commented out in
-`stack.yaml` since `redis` is also disabled):
+Example based on `otp-api`, which remains disabled in `stack.yaml`. The enabled example below uses the enabled Redis service:
 
 ```yaml
 services:
@@ -168,7 +197,7 @@ services:
       mode: image
     runtime:
       port: 6379
-    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]
+    command: ["sh", "-c", "exec redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly no --save \"\" --requirepass \"$REDIS_PASSWORD\""]
     env:
       files:
         secret: env/services-secrets/redis.env
@@ -187,6 +216,7 @@ Notes:
 - Consumers pass the same password: Spring Boot via
   `SPRING_DATA_REDIS_PASSWORD`, Node via `redis://:<password>@redis:6379`.
 - Add `depends_on: [redis]` to services that need it at startup.
+- The example matches the current cache-only Redis policy. If durable Redis data is required, configure persistence and a separate backup/restore procedure explicitly; a volume alone does not enable AOF or RDB.
 
 ## Add A New Shared-Node Backend
 
@@ -221,7 +251,7 @@ services:
 
 ## Move A Service Between Modes
 
-This is intentionally config-only.
+Change the config, then regenerate the affected build artifacts and publish a new release. Mode changes also require retiring the previous runtime.
 
 ### Shared-Node To Isolated
 
@@ -234,6 +264,8 @@ deploy:
 
 Then remove the `group` field and keep the runtime port.
 
+Retarget app-relative storage for the isolated working directory (municipal media uses `/srv/app/media`), while preserving the host data path. Rebuild both isolated services and the entire old shared-node group so its PM2 configuration drops the migrated processes. Apply both runtimes and the edge routing change; the municipal alias handles those services together. See [MUNICIPAL_MIGRATION.md](MUNICIPAL_MIGRATION.md).
+
 ### Isolated To Shared-Node
 
 Change:
@@ -245,6 +277,8 @@ deploy:
 ```
 
 Make sure the port does not conflict with another service in that group.
+
+Rebuild the whole group, update ingress and storage targets, and deploy the revised stack with obsolete isolated containers removed.
 
 ### Isolated Frontend To Edge-Static
 
@@ -265,14 +299,14 @@ Set:
 enabled: false
 ```
 
-Then validate and publish a new release.
+Remove or redirect its ingress entries/routes and remove dependencies pointing to it in the same config change. Then validate, rebuild any affected shared group, and publish/deploy a new release. Validation rejects references to a disabled service.
 
 ## Remove A Service
 
-1. set `enabled: false`
-2. publish and apply one release to prove removal is safe
-3. remove the `services` entry
-4. remove related `ingress`
+1. disable the service and remove or redirect its ingress/dependency references
+2. rebuild affected runtimes, publish and deploy a release to verify removal
+3. remove the `services` entry when it is no longer needed
+4. confirm no remaining ingress or dependency references point to it
 5. remove env files if no longer needed
 6. remove the `sources` entry only if nothing else uses it
 
@@ -313,7 +347,7 @@ For a **new subdomain** under an existing root domain (e.g. `new.brijeshkushwaha
 
 1. Add the host to the relevant `ingress` entry in `stack.yaml`
 2. Run `npm run ssl:generate-domains` to sync `domains.conf`
-3. On server: `sudo bash ssl-setup/certbot-run.sh --grouped` (skips certs with > 120 days left)
+3. On server: `sudo bash ssl-setup/certbot-run.sh --grouped`; verify the resulting certificate covers the new hostname (the expiry skip defaults to 120 days, so check SAN coverage explicitly)
 4. Publish and push a new release
 
 For a **new root domain** (e.g. `newsite.io`):
@@ -343,7 +377,7 @@ The system supports:
 
 **Multi-root-domain entries:** If one ingress entry lists hosts from different root domains (e.g. `subsnepal.brijeshkushwaha.com.np` and `subsnepal.com`), the nginx renderer automatically splits them into separate TLS server blocks — one per cert. Each block points to the same upstream.
 
-Do not normalize or auto-correct hostnames such as `api.muncipal.brijeshkushwaha.com.np`. Use the exact value that is intended.
+Do not normalize or auto-correct configured hostnames such as `api-dharche.muncipal.brijeshkushwaha.com.np`. Use the exact value in ingress.
 
 ## Required Validation After Changes
 
@@ -351,6 +385,7 @@ Always run:
 
 ```bash
 npm run validate
+npm test
 ```
 
 Then run the preview flow that matches the changed service mode.
@@ -362,6 +397,7 @@ Then run the preview flow that matches the changed service mode.
 - `deploy.mode: image` services must define `image:`, and must **not** define `source.key`, `runtime.start`, or any `build` settings; `kind` should be `datastore`.
 - Only `image`-mode services may set a top-level `image:`.
 - `build.strategy: dockerfile` requires `deploy.mode: isolated` and `kind: backend`.
+- A configured `build.shared_image` must be a non-empty string and requires `deploy.mode: isolated`.
 - `depends_on` targets must exist and be `enabled: true` — a disabled dependency is a hard error. `depends_on` is only allowed on `isolated`/`image`-mode services (they're the only ones that run their own container).
 - `resources:` limits are only honored on `isolated`/`image`-mode services; setting them elsewhere is a warning, not an error (shared-node groups set limits on the group instead).
 
