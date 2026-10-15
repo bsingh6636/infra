@@ -28,20 +28,28 @@ A service's `deploy.mode` determines how it runs:
 | Mode | What it means | Example |
 |---|---|---|
 | `edge-static` | Static build output served directly by the nginx edge container | `portfolio-web`, `municipal-admin` |
-| `isolated` | Runs in its own container | `subsnepal-api`, `subsnepal-web` |
-| `shared-node` | Runs as a PM2 process inside a shared Node container (`deploy.group` picks which group) | `cors-api`, `getdata`, `municipal-api` |
+| `isolated` | Runs in its own container | `subsnepal-api`, `subsnepal-web`, the municipal backends |
+| `shared-node` | Runs as a PM2 process inside a shared Node container (`deploy.group` picks which group) | `cors-api`, `getdata` |
 | `image` | Prebuilt image, no source repo/build, `kind: datastore` | `redis` |
 
 `build.strategy: dockerfile` (only valid with `deploy.mode: isolated` + `kind: backend`) builds the
 service's own `Dockerfile` instead of generating a Node image — for non-Node runtimes (e.g. `otp-api`
 is Spring Boot).
 
+`build.shared_image: <name>` (only valid with `deploy.mode: isolated`) makes several services build
+and run from one image instead of one image per service. Services sharing a name share a git checkout,
+a build context, and an image tag; each still gets its own container, env file, port, volumes and
+resource limits. The image bakes defaults from whichever sharing service is listed first in
+`config/stack.yaml`, so per-service `runtime.env` and `runtime.port` are written into that service's
+env file and override them at runtime. Used by the five municipal backends, which run the same repo
+per tenant.
+
 Full walkthroughs for adding/moving/removing a service: [`readme/SERVICE_MANAGEMENT.md`](./readme/SERVICE_MANAGEMENT.md).
 
 ### Validation rules enforced by `npm run validate` (`scripts/validate/checks/*.mjs`)
 
 - `source-schema.mjs` — every source has a valid repo URL + ref; every non-image service has `source.key`
-- `service-modes.mjs` — image-mode services define `image` and must not define `source.key`/`build`/`runtime.start`; `build.strategy: dockerfile` requires `deploy.mode: isolated` + `kind: backend`; `depends_on` targets must exist and be enabled, and is only valid on `isolated`/`image` services; `resources` only honored on `isolated`/`image`
+- `service-modes.mjs` — image-mode services define `image` and must not define `source.key`/`build`/`runtime.start`; `build.strategy: dockerfile` requires `deploy.mode: isolated` + `kind: backend`; `build.shared_image` must be a non-empty string and requires `deploy.mode: isolated`; `depends_on` targets must exist and be enabled, and is only valid on `isolated`/`image` services; `resources` only honored on `isolated`/`image`
 - `service-refs.mjs` — `ingress[].upstream.service` and `routes[].service` point at real, enabled services
 - `required-env.mjs` — every key in a service's `env.required` is present in its merged env
 - `env-files.mjs`, `duplicate-hosts.mjs`, `groups.mjs`, `hostname-lint.mjs`, `ports.mjs`, `route-conflicts.mjs`, `source-remote.mjs` — structural/naming/port-conflict checks

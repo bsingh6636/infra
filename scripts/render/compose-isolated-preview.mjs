@@ -7,9 +7,10 @@ function getIsolatedServices(stack) {
 }
 
 function buildIsolatedService(service) {
+  const contextName = service.build?.shared_image || service.name;
   const definition = {
     build: {
-      context: `./isolated-preview/build/${service.name}`,
+      context: `./isolated-preview/build/${contextName}`,
     },
     restart: "unless-stopped",
   };

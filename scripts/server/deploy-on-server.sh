@@ -73,6 +73,10 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
 fi
 
 DEPLOY_SERVICES="${2:-}"
+if [[ "${DEPLOY_SERVICES}" == "municipal" ]]; then
+  # Rebuild the shared group too, so its former municipal PM2 processes stop.
+  DEPLOY_SERVICES="municipal-api siranchowk-municipal ratnagar-municipal madhyabindu-municipal devghat-municipal shared-low-node"
+fi
 
 # ── Bring up new stack (only restart changed containers) ───────────────────
 if [[ -L "${CURRENT_LINK}" ]]; then

@@ -130,9 +130,27 @@ function buildSharedNodeService(stack, groupName, services, stateRoot, registry,
 
 function buildIsolatedService(stack, service, stateRoot, registry, releaseId) {
   const exposePort = getContainerExposePort(service);
-  const serviceDefinition = registry
-    ? { image: `${registry}/${service.name}:${releaseId}`, restart: "unless-stopped" }
-    : { build: { context: `./isolated/${service.name}` }, restart: "unless-stopped" };
+  const contextName = service.build?.shared_image || service.name;
+  const imageName = service.build?.shared_image || service.name;
+
+  let serviceDefinition;
+  if (registry) {
+    serviceDefinition = {
+      image: `${registry}/${imageName}:${releaseId}`,
+      restart: "unless-stopped",
+    };
+  } else if (service.build?.shared_image) {
+    serviceDefinition = {
+      image: `${stack.project.name}-${imageName}:${releaseId}`,
+      build: { context: `./isolated/${contextName}` },
+      restart: "unless-stopped",
+    };
+  } else {
+    serviceDefinition = {
+      build: { context: `./isolated/${service.name}` },
+      restart: "unless-stopped",
+    };
+  }
 
   if (Number.isInteger(exposePort) && exposePort > 0) {
     serviceDefinition.expose = [String(exposePort)];

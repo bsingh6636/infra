@@ -79,15 +79,16 @@ async function ensureBuiltContexts(stack) {
   const missing = [];
 
   for (const service of getIsolatedServices(stack)) {
+    const contextName = service.build?.shared_image || service.name;
     const dockerfilePath = path.join(
       generatedIsolatedPreviewRoot,
       "build",
-      service.name,
+      contextName,
       "Dockerfile",
     );
 
     if (!(await pathExists(dockerfilePath))) {
-      missing.push(`${service.name} (missing Dockerfile)`);
+      missing.push(`${contextName} (missing Dockerfile for ${service.name})`);
     }
 
     if (service.kind === "backend") {

@@ -110,8 +110,9 @@ function buildSharedNodeService(stack, groupName, services) {
 
 function buildIsolatedService(stack, service) {
   const exposePort = getContainerExposePort(service);
+  const imageName = service.build?.shared_image || service.name;
   const serviceDefinition = {
-    image: `${stack.project.name}-${service.name}:phase2-preview`,
+    image: `${stack.project.name}-${imageName}:phase2-preview`,
     restart: "unless-stopped",
     networks: [stack.project.network],
   };

@@ -193,7 +193,7 @@ function renderStaticUpstream(stack, entry) {
   // `expires` is used instead of `add_header Cache-Control` on purpose: a
   // location-level add_header would stop nginx inheriting the server-level
   // security headers into that location.
-  lines.push("location ~ ^/(assets|static)/ {");
+  lines.push("location ~ ^/(assets|static|_next)/ {");
   lines.push("    try_files $uri =404;");
   lines.push("    expires 1y;");
   lines.push("}");

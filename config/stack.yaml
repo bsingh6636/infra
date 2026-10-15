@@ -79,6 +79,9 @@ sources:
   stylework:
     repo: https://github.com/bsingh6636/Stylework-Assesment.git
     ref: master
+  codify:
+    repo: git@github.com:bsingh6636/codify-technology.git
+    ref: master
 
 groups:
   low-node:
@@ -118,6 +121,17 @@ services:
     source:
       key: educors
       context: FrontEnd
+    build:
+      output_dir: auto
+    deploy:
+      mode: edge-static
+
+  codify-web:
+    enabled: true
+    kind: frontend
+    source:
+      key: codify
+      context: .
     build:
       output_dir: auto
     deploy:
@@ -226,14 +240,18 @@ services:
     source:
       key: municipal_backend
       context: .
+    build:
+      shared_image: municipal-backend
     deploy:
-      mode: shared-node
-      group: low-node
+      mode: isolated
     runtime:
       port: 4303
       start: npm start
       env:
         MUNICIPAL_BACKEND_PORT: "4303"
+    resources:
+      cpus: "0.20"
+      memory: 192m
     env:
       files:
         nonsecret: env/services/municipal-api.env
@@ -243,7 +261,7 @@ services:
     storage:
       - type: bind
         source: /opt/brijesh-infra/data/municipal/media
-        target: /srv/apps/municipal-api/media
+        target: /srv/app/media
 
   siranchowk-municipal:
     enabled: true
@@ -251,14 +269,18 @@ services:
     source:
       key: municipal_backend
       context: .
+    build:
+      shared_image: municipal-backend
     deploy:
-      mode: shared-node
-      group: low-node
+      mode: isolated
     runtime:
       port: 4304
       start: npm start
       env:
         MUNICIPAL_BACKEND_PORT: "4304"
+    resources:
+      cpus: "0.20"
+      memory: 192m
     env:
       files:
         nonsecret: env/services/siranchowk-municipal.env
@@ -268,7 +290,7 @@ services:
     storage:
       - type: bind
         source: /opt/brijesh-infra/data/siranchowk/media
-        target: /srv/apps/siranchowk-municipal/media
+        target: /srv/app/media
 
   ratnagar-municipal:
     enabled: true
@@ -276,14 +298,18 @@ services:
     source:
       key: municipal_backend
       context: .
+    build:
+      shared_image: municipal-backend
     deploy:
-      mode: shared-node
-      group: low-node
+      mode: isolated
     runtime:
       port: 4305
       start: npm start
       env:
         MUNICIPAL_BACKEND_PORT: "4305"
+    resources:
+      cpus: "0.20"
+      memory: 192m
     env:
       files:
         nonsecret: env/services/ratnagar-municipal.env
@@ -293,7 +319,7 @@ services:
     storage:
       - type: bind
         source: /opt/brijesh-infra/data/ratnagar/media
-        target: /srv/apps/ratnagar-municipal/media
+        target: /srv/app/media
 
   madhyabindu-municipal:
     enabled: true
@@ -301,14 +327,18 @@ services:
     source:
       key: municipal_backend
       context: .
+    build:
+      shared_image: municipal-backend
     deploy:
-      mode: shared-node
-      group: low-node
+      mode: isolated
     runtime:
       port: 4307
       start: npm start
       env:
         MUNICIPAL_BACKEND_PORT: "4307"
+    resources:
+      cpus: "0.20"
+      memory: 192m
     env:
       files:
         nonsecret: env/services/madhyabindu-municipal.env
@@ -318,7 +348,7 @@ services:
     storage:
       - type: bind
         source: /opt/brijesh-infra/data/madhyabindu/media
-        target: /srv/apps/madhyabindu-municipal/media
+        target: /srv/app/media
 
   devghat-municipal:
     enabled: true
@@ -326,14 +356,18 @@ services:
     source:
       key: municipal_backend
       context: .
+    build:
+      shared_image: municipal-backend
     deploy:
       mode: isolated
     runtime:
       port: 4308
       start: npm start
+      env:
+        MUNICIPAL_BACKEND_PORT: "4308"
     resources:
-      cpus: "0.25"
-      memory: 256m
+      cpus: "0.20"
+      memory: 192m
     env:
       files:
         nonsecret: env/services/devghat-municipal.env
@@ -692,6 +726,15 @@ ingress:
     upstream:
       type: proxy
       service: devghat-municipal
+
+  - name: codify-web
+    hosts:
+      - name: codifyteam.com
+      - name: www.codifyteam.com
+    upstream:
+      type: static
+      service: codify-web
+      spa_fallback: true
 
   - name: sahayog-web
     hosts:

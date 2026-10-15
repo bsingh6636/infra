@@ -68,6 +68,19 @@ export async function runServiceModesCheck({ stack }) {
       }
     }
 
+    if (service.build?.shared_image) {
+      if (typeof service.build.shared_image !== "string" || !service.build.shared_image.trim()) {
+        result.errors.push(
+          `Service "${service.name}" defines build.shared_image which must be a non-empty string.`,
+        );
+      }
+      if (service.deploy.mode !== "isolated") {
+        result.errors.push(
+          `Service "${service.name}" uses build.shared_image which requires deploy.mode=isolated.`,
+        );
+      }
+    }
+
     for (const dependency of service.depends_on) {
       const target = stack.servicesByName.get(dependency);
 

@@ -14,7 +14,11 @@ Knowing which container a service lives in matters — it dictates how you read 
 | portfolio-web, ranju-web, cors-web, municipal-admin | edge-static | served directly by `brijesh-infra-edge-1` (static files) | n/a |
 | cors-api | shared-node | `brijesh-infra-shared-low-node-1` (via PM2) | 4301 |
 | getdata | shared-node | `brijesh-infra-shared-low-node-1` (via PM2) | 4302 |
-| municipal-api | shared-node | `brijesh-infra-shared-low-node-1` (via PM2) | 4303 |
+| municipal-api | isolated | `brijesh-infra-municipal-api-1` | 4303 |
+| siranchowk-municipal | isolated | `brijesh-infra-siranchowk-municipal-1` | 4304 |
+| ratnagar-municipal | isolated | `brijesh-infra-ratnagar-municipal-1` | 4305 |
+| madhyabindu-municipal | isolated | `brijesh-infra-madhyabindu-municipal-1` | 4307 |
+| devghat-municipal | isolated | `brijesh-infra-devghat-municipal-1` | 4308 |
 | subsnepal-web | isolated | `brijesh-infra-subsnepal-web-1` | 80 (container) |
 | subsnepal-api | isolated | `brijesh-infra-subsnepal-api-1` | 9090 |
 
@@ -40,20 +44,29 @@ docker logs --tail 100 brijesh-infra-edge-1
 docker logs brijesh-infra-edge-1 2>&1 | grep -E "error|emerg|warn" | tail -50
 ```
 
-### Isolated services (subsnepal-web, subsnepal-api)
+### Isolated services (municipal backends, subsnepal-web, subsnepal-api)
 
 Each runs in its own container — logs come straight from `docker logs`.
 
 ```bash
 docker logs -f brijesh-infra-subsnepal-api-1
 docker logs -f brijesh-infra-subsnepal-web-1
+docker logs -f brijesh-infra-municipal-api-1
 
 docker logs --tail 200 brijesh-infra-subsnepal-api-1
 ```
 
-### Shared-node services (cors-api, getdata, municipal-api)
+Municipal shortcuts can run locally over SSH or directly on the server:
 
-All three run inside **one container** managed by PM2, so `docker logs` shows them mixed. Use PM2 to filter by service.
+```bash
+npm run municipal:status
+npm run municipal:restart -- ratnagar
+npm run municipal:logs -- devghat
+```
+
+### Shared-node services (cors-api, getdata)
+
+Both run inside **one container** managed by PM2, so `docker logs` shows them mixed. Use PM2 to filter by service.
 
 ```bash
 # Shortcut variable
@@ -63,12 +76,11 @@ CID=$(docker ps -qf name=shared-low-node)
 docker exec $CID pm2 list
 
 # Logs for ONE service (live tail)
-docker exec $CID pm2 logs municipal-api
 docker exec $CID pm2 logs cors-api
 docker exec $CID pm2 logs getdata
 
 # Last N lines, no tail
-docker exec $CID pm2 logs municipal-api --lines 100 --nostream
+docker exec $CID pm2 logs cors-api --lines 100 --nostream
 
 # All services interleaved
 docker exec $CID pm2 logs
@@ -117,28 +129,28 @@ CID=$(docker ps -qf name=shared-low-node)
 docker exec $CID pm2 list
 
 # Detailed info on one service
-docker exec $CID pm2 info municipal-api
+docker exec $CID pm2 info cors-api
 
 # Restart one service without touching the others
-docker exec $CID pm2 restart municipal-api
-docker exec $CID pm2 reload municipal-api  # zero-downtime
+docker exec $CID pm2 restart cors-api
+docker exec $CID pm2 reload cors-api  # zero-downtime
 ```
 
 ### Internal ports — is a service actually listening?
 
 ```bash
 docker exec $CID sh -c "ss -tlnp 2>/dev/null || netstat -tlnp"
-# Should show 4301, 4302, 4303 for shared-low-node
+# Should show 4301 and 4302 for shared-low-node
 ```
 
 ### Internal env — what does the running process see?
 
 ```bash
 # The env file PM2 sources at startup
-docker exec $CID cat /srv/env/municipal-api.env | grep -v '^$'
+docker exec $CID cat /srv/env/cors-api.env | grep -v '^$'
 
 # What PM2 actually injected (live env of running process)
-docker exec $CID sh -c 'cat /proc/$(pgrep -f municipal-api | head -1)/environ | tr "\0" "\n"' | grep -v -E "^(PATH|HOME|TERM|HOSTNAME)="
+docker exec $CID sh -c 'cat /proc/$(pgrep -f cors-api | head -1)/environ | tr "\0" "\n"' | grep -v -E "^(PATH|HOME|TERM|HOSTNAME)="
 ```
 
 ---
@@ -159,29 +171,51 @@ npm run build:edge-static -- --service ranju-web
 
 Other frontends keep their existing artifacts in `generated/edge-static/`; the next `release:publish:prod` bundles whatever is there.
 
-### Shared-node (cors-api / getdata / municipal-api) — DON'T use `--service`
+To rebuild and deploy a frontend already present in the live Nginx configuration:
 
-All three backends share one PM2-managed container. Building just one would produce a container missing the other two. Always rebuild the whole group:
+```bash
+npm run deploy:edge-static -- municipal-admin
+```
+
+This replaces the service's live static directory, removing files absent from the new build. Extraction or Nginx reload failures preserve the previous directory. It updates the current release in place; publish a new release when you need a separate rollback snapshot or changed ingress configuration.
+
+### Shared-node (cors-api / getdata) — DON'T use `--service`
+
+Both backends share one PM2-managed container. Building just one would produce a container missing the other. Always rebuild the whole group:
 
 ```bash
 npm run build:shared-node-preview
 ```
 
-### Isolated (subsnepal-web / subsnepal-api) — `--service` works
+### Isolated (municipal backends / subsnepal-web / subsnepal-api) — `--service` works
 
 ```bash
 npm run build:isolated-preview -- --service subsnepal-api
+npm run build:isolated-preview -- --service municipal-api
 ```
+
+The five municipal backends share one image. Each gets its own env file containing `runtime.env` and `PORT` from `runtime.port`; those runtime settings take precedence over env-file values. Rebuild all isolated services when changing configuration for multiple municipal services.
 
 ### Common one-service deploy flow
 
 Example — only municipal backend + frontend changed:
 ```bash
 npm run build:edge-static -- --service municipal-admin
-npm run build:shared-node-preview                                # full shared-node rebuild
+npm run build:isolated-preview -- --service municipal-api
 npm run release:publish:prod
 ./scripts/server/push-release.sh 20260531-143203 ubuntu@SERVER_IP
 ```
+
+For the first migration of municipal backends from the shared group, regenerate both backend artifacts before publishing:
+
+```bash
+npm run build:isolated-preview
+npm run build:shared-node-preview
+npm run release:publish:prod
+./scripts/server/push-release.sh <release-id> aws municipal
+```
+
+The `municipal` target deploys all five municipal containers and rebuilds `shared-low-node` to stop its former municipal PM2 processes before updating the edge.
 
 Or the one-command shortcut: `npm run server:ship` (publish + push + deploy in one shot). See [`RELEASES_AND_ROLLBACK.md`](./RELEASES_AND_ROLLBACK.md).
 

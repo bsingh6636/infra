@@ -261,8 +261,14 @@ async function writeBackendEnvFile(stack, service, envDirectory) {
     );
   }
 
+  // Runtime settings belong to each container, even when its image is shared.
+  const runtimeEnv = {
+    ...merged,
+    ...service.runtime.env,
+    PORT: String(service.runtime.port),
+  };
   const envPath = path.join(envDirectory, `${service.name}.env`);
-  const lines = Object.entries(merged)
+  const lines = Object.entries(runtimeEnv)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, value]) => `${key}=${serializeEnvValue(value)}`);
 
@@ -387,17 +393,14 @@ async function writeRepoDockerfileContext(stack, service, checkoutRoot, contextD
 
 async function writeRealBackendContext(stack, service, checkoutRoot, contextDirectory) {
   const source = stack.sources[service.source.key];
-  const checkoutPath = path.join(checkoutRoot, service.name);
+  const checkoutName = service.build?.shared_image || service.name;
+  const checkoutPath = path.join(checkoutRoot, checkoutName);
   const projectDirectory = getProjectDirectory(checkoutPath, service);
   const appDirectory = path.join(contextDirectory, "app");
-  const runtimeEnvLines = Object.entries(service.runtime?.env || {})
-    .map(([k, v]) => `export ${k}="\${${k}:-${v}}"`)
-    .join("\n");
   const startScript = `#!/bin/sh
 set -eu
 cd /srv/app
 export PORT="\${PORT:-${service.runtime.port}}"
-${runtimeEnvLines}
 exec sh -lc ${JSON.stringify(service.runtime.start)}
 `;
   const dockerfile = `FROM node:20-alpine
@@ -452,46 +455,66 @@ export async function buildIsolatedPreviewServices(stack, options = {}) {
   await mkdir(envRoot, { recursive: true });
   await mkdir(checkoutRoot, { recursive: true });
 
-  // Build all isolated services in parallel for speed
+  // 1. Write per-service backend env files
   await Promise.all(
     isolatedServices.map(async (service) => {
-      const contextDirectory = path.join(buildRoot, service.name);
-      const envPath =
-        service.kind === "backend"
-          ? await writeBackendEnvFile(stack, service, envRoot)
-          : null;
+      if (service.kind === "backend") {
+        await writeBackendEnvFile(stack, service, envRoot);
+      }
+    }),
+  );
+
+  // 2. Group isolated services by unique build context name (shared image or service name)
+  const contextGroups = new Map();
+  for (const service of isolatedServices) {
+    const contextName = service.build?.shared_image || service.name;
+    if (!contextGroups.has(contextName)) {
+      contextGroups.set(contextName, []);
+    }
+    contextGroups.get(contextName).push(service);
+  }
+
+  // 3. Build each unique build context once
+  await Promise.all(
+    [...contextGroups.entries()].map(async ([contextName, services]) => {
+      const primaryService = services[0];
+      const contextDirectory = path.join(buildRoot, contextName);
 
       await ensureEmptyDirectory(contextDirectory);
 
-      if (service.kind === "frontend") {
-        if (service.deploy.frontend_runtime !== "static-container") {
+      if (primaryService.kind === "frontend") {
+        if (primaryService.deploy.frontend_runtime !== "static-container") {
           throw new Error(
-            `Isolated frontend ${service.name} must use deploy.frontend_runtime=static-container in Phase 4.`,
+            `Isolated frontend ${primaryService.name} must use deploy.frontend_runtime=static-container in Phase 4.`,
           );
         }
 
         if (stub) {
-          await writeStubFrontendContext(contextDirectory, service);
+          await writeStubFrontendContext(contextDirectory, primaryService);
         } else {
-          await buildRealFrontendContext(stack, service, checkoutRoot, contextDirectory);
+          await buildRealFrontendContext(stack, primaryService, checkoutRoot, contextDirectory);
         }
       } else if (stub) {
-        await writeStubBackendContext(contextDirectory, service);
-      } else if (service.build.strategy === "dockerfile") {
-        await writeRepoDockerfileContext(stack, service, checkoutRoot, contextDirectory);
+        await writeStubBackendContext(contextDirectory, primaryService);
+      } else if (primaryService.build.strategy === "dockerfile") {
+        await writeRepoDockerfileContext(stack, primaryService, checkoutRoot, contextDirectory);
       } else {
-        await writeRealBackendContext(stack, service, checkoutRoot, contextDirectory);
+        await writeRealBackendContext(stack, primaryService, checkoutRoot, contextDirectory);
       }
-
-      builtServices.push({
-        service: service.name,
-        mode: stub ? "stub" : "real",
-        kind: service.kind,
-        contextDirectory,
-        envFile: envPath,
-      });
     }),
   );
+
+  for (const service of isolatedServices) {
+    const contextName = service.build?.shared_image || service.name;
+    builtServices.push({
+      service: service.name,
+      contextName,
+      mode: stub ? "stub" : "real",
+      kind: service.kind,
+      contextDirectory: path.join(buildRoot, contextName),
+      envFile: service.kind === "backend" ? path.join(envRoot, `${service.name}.env`) : null,
+    });
+  }
 
   await writeFile(
     path.join(generatedIsolatedPreviewRoot, "manifest.json"),

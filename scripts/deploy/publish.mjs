@@ -123,10 +123,11 @@ async function ensureReleaseInputs(stack) {
     }
 
     if (service.deploy.mode === "isolated") {
-      const buildContext = path.join(generatedIsolatedPreviewRoot, "build", service.name);
+      const contextName = service.build?.shared_image || service.name;
+      const buildContext = path.join(generatedIsolatedPreviewRoot, "build", contextName);
 
       if (!(await pathExists(path.join(buildContext, "Dockerfile")))) {
-        missing.push(`${service.name} isolated context (${buildContext})`);
+        missing.push(`${contextName} isolated context (${buildContext})`);
       }
 
       if (service.kind === "backend") {
@@ -170,9 +171,15 @@ function pushImagesToRegistry(stack, registry, releaseId) {
     (s) => s.enabled && s.deploy.mode === "isolated",
   );
 
+  const seenImages = new Set();
   for (const service of isolatedServices) {
-    const tag = `${registry}/${service.name}:${releaseId}`;
-    const contextPath = path.join(generatedIsolatedPreviewRoot, "build", service.name);
+    const imageName = service.build?.shared_image || service.name;
+    if (seenImages.has(imageName)) {
+      continue;
+    }
+    seenImages.add(imageName);
+    const tag = `${registry}/${imageName}:${releaseId}`;
+    const contextPath = path.join(generatedIsolatedPreviewRoot, "build", imageName);
     dockerBuildAndPush(tag, contextPath);
   }
 
@@ -250,9 +257,11 @@ async function buildReleasePayload(stack, layout, releaseId, releaseDirectory, p
     }
 
     if (service.deploy.mode === "isolated") {
+      const contextName = service.build?.shared_image || service.name;
+      const imageName = service.build?.shared_image || service.name;
       const record = registry
-        ? { image: `${registry}/${service.name}:${releaseId}` }
-        : { path: `isolated/${service.name}`, sha256: await hashPath(path.join(releaseDirectory, "isolated", service.name)) };
+        ? { image: `${registry}/${imageName}:${releaseId}` }
+        : { path: `isolated/${contextName}`, sha256: await hashPath(path.join(releaseDirectory, "isolated", contextName)) };
 
       if (service.kind === "backend") {
         const envPath = path.join(releaseDirectory, "isolated-env", `${service.name}.env`);
@@ -350,12 +359,18 @@ async function main() {
     await mkdir(path.join(releaseDirectory, "isolated"), { recursive: true });
     await mkdir(path.join(releaseDirectory, "shared"), { recursive: true });
 
-    for (const service of stack.services.filter(
-      (item) => item.enabled && item.deploy.mode === "isolated",
-    )) {
+    const uniqueIsolatedContexts = [
+      ...new Set(
+        stack.services
+          .filter((item) => item.enabled && item.deploy.mode === "isolated")
+          .map((item) => item.build?.shared_image || item.name),
+      ),
+    ];
+
+    for (const contextName of uniqueIsolatedContexts) {
       await copyDirectory(
-        path.join(generatedIsolatedPreviewRoot, "build", service.name),
-        path.join(releaseDirectory, "isolated", service.name),
+        path.join(generatedIsolatedPreviewRoot, "build", contextName),
+        path.join(releaseDirectory, "isolated", contextName),
       );
     }
 

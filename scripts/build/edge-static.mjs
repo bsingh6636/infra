@@ -73,7 +73,7 @@ async function detectOutputDirectory(projectDirectory, service) {
     );
   }
 
-  const candidates = ["dist", "build"];
+  const candidates = ["dist", "build", "out"];
 
   for (const candidate of candidates) {
     const candidatePath = path.resolve(projectDirectory, candidate);
